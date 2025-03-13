@@ -15,7 +15,7 @@ public class GroundCheck : MonoBehaviour
         {
             player.isGrounded = true;
             player.animator.SetBool("Jumping", false);
-
+            StartCoroutine(player.RegenStam());
         }
 	}
 }

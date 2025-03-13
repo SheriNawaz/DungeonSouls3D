@@ -35,7 +35,6 @@ public class EnemyController : MonoBehaviour
 	private IEnumerator Dying()
 	{
 		animator.SetTrigger("Death");
-		print("waiting");
 		yield return new WaitForSeconds(2f);
 		Destroy(gameObject);
 	}
