@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: b1fa1bbd55a153c429206f754ebf29a7
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Scripts/Skinn Core/Skinn.ShapeFilter.cs
+  uploadId: 315444

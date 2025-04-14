@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 13c2bd18ff854a546ae8fdcdc7d679d3
+timeCreated: 1498732889
+licenseType: Store
+ComputeShaderImporter:
+  currentAPIMask: 196608
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/ComputeShaders/LinearSkinning.compute
+  uploadId: 315444

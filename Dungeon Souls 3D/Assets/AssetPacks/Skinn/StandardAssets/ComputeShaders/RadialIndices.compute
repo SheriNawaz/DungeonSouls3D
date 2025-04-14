@@ -1,0 +1,93 @@
+﻿#pragma kernel RadialPass
+#pragma kernel RadialWeightPass
+
+#define SingleThreadGroupSize 512
+#define PositiveInfinity 1e+38
+
+int VertexCount;
+
+StructuredBuffer<float3> Vertices;
+StructuredBuffer<int> Duplicates;
+
+int RadialCount;
+RWStructuredBuffer<float2> RadialIndices;
+
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void RadialPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float radialDistance = 0;
+	for (int i = 0; i < RadialCount; i++)
+	{
+		int sourceIndex = ix * RadialCount + i;
+		int closestIndex = -1;
+		float closestDistance = PositiveInfinity;
+
+		for (int iy = 0; iy < VertexCount; iy++)
+		{
+			if (ix == iy || iy != Duplicates[iy]) continue;
+			float dis = distance(Vertices[ix], Vertices[iy]);
+			if (dis > radialDistance && dis < closestDistance)
+			{
+				closestDistance = dis;
+				closestIndex = iy;
+			}
+		}
+
+		if (closestIndex != -1)
+		{
+			RadialIndices[sourceIndex].x = closestIndex;
+			radialDistance = closestDistance;
+		}
+		else 
+		{
+			RadialIndices[sourceIndex].x = 0;
+			radialDistance = 0;
+		}
+	}
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void RadialWeightPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	if (RadialCount == 1) { RadialIndices[ix * RadialCount].y = 1.0; return; }
+
+	float maxDistance = 0;
+	float totalDistance = 0;
+	int i;
+	for (i = 0; i < RadialCount; i++)
+	{
+		int sourceIndex = ix * RadialCount + i;
+		int weightIndex = RadialIndices[sourceIndex].x;
+		float dis = distance(Vertices[ix], Vertices[weightIndex]);
+		totalDistance += dis;
+		maxDistance = max(dis, maxDistance);
+	}
+
+	float totalPower = 0;
+
+	for (i = 0; i < RadialCount; i++)
+	{
+		int sourceIndex = ix * RadialCount + i;
+		int weightIndex = RadialIndices[sourceIndex].x;
+		float dis = distance(Vertices[ix], Vertices[weightIndex]);
+		float mPower = 1.0 - (distance(Vertices[ix], Vertices[weightIndex]) / maxDistance);
+		float dPower = (1.0 - (distance(Vertices[ix], Vertices[weightIndex]) / totalDistance)) / totalDistance;
+		float power = (mPower + dPower) * 0.5;
+		RadialIndices[sourceIndex].y = power;
+		totalPower += power;
+	}
+
+	for (i = 0; i < RadialCount; i++)
+	{
+		int sourceIndex = ix * RadialCount + i;
+		if(RadialCount == 1) RadialIndices[sourceIndex].y = 1.0;
+		else RadialIndices[sourceIndex].y /= totalPower;
+	}
+}

@@ -1,0 +1,747 @@
+﻿#pragma kernel PrePass
+#pragma kernel SearchSinglePass
+
+#pragma kernel FallbackSinglePass
+
+#pragma kernel SearchMultiPass
+#pragma kernel SearchMultiPostPass
+
+#pragma kernel IndexRetargetingPass
+
+#pragma kernel MaxDistancePass
+#pragma kernel WeightedDistancePass
+
+#pragma kernel AddWeightsPass
+#pragma kernel WeightIndexRetargetingPass
+
+#pragma kernel SmoothDeltaPass
+#pragma kernel InflationPass
+
+#define ThreadGroupSizeX 32
+#define ThreadGroupSizeY 32
+
+#define SingleThreadGroupSize 512
+
+#define PositiveInfinity 1e+38
+#define NegativeInfinity -1e+38
+
+#define Vector2Zero float2(0.0, 0.0)
+#define Vector3Zero float3(0.0, 0.0, 0.0)
+#define Vector4Zero float4(0.0, 0.0, 0.0, 0.0)
+
+struct BoneWeights
+{
+	float4 weights;
+	int4 indices;
+};
+
+bool CompareSubMesh, CompareUV, CompareNormals, CompareTangents, CompareWeights;
+
+bool UseMaxDistance, UseSourceBoneFilter, UseTargetBoneFilter;
+
+float MaxDistance = PositiveInfinity;
+float BoneWeightTolerance;
+
+int TargetVertexCount;
+
+StructuredBuffer<float3> TargetVertices, TargetNormals;
+StructuredBuffer<float4> TargetTangents;
+RWStructuredBuffer<BoneWeights> TargetWeights;
+StructuredBuffer<int> TargetSubMesh;
+StructuredBuffer<float2> TargetUV;
+StructuredBuffer<int> TargetDuplicates;
+
+
+int TargetBoneCount;
+StructuredBuffer<int> TargetInvalidBones;
+
+int TargetAdjacentCount;
+StructuredBuffer<int> TargetAdjacency;
+
+float TargetRadialMaxDistance;
+
+int TargetRadialAdjCount;
+StructuredBuffer<float2> TargetRadialAdj;
+
+
+int SourceVertexCount;
+StructuredBuffer<float3> SourceVertices, SourceNormals;
+StructuredBuffer<float4> SourceTangents;
+StructuredBuffer<BoneWeights> SourceWeights;
+StructuredBuffer<int> SourceSubMesh;
+StructuredBuffer<float2> SourceUV;
+
+int SourceBoneCount;
+StructuredBuffer<int> SourceInvalidBones;
+
+float Inflation = 0.001;
+
+float SurfaceWeight = 1.0;
+float2 SurfaceCurve = float2(0, 1);
+float4 SurfaceCurveTangents = float4(0.25, 0.25, 0.75, 0.75);
+
+float2 LinearInCurve = float2(0, 1);
+float4 LinearInCurveTangents = float4(0.25, 0.25, 0.75, 0.75);
+
+float2 LinearOutCurve = float2(1, 0);
+float4 LinearOutCurveTangents = float4(0.25, 0.75, 0.75, 0.25);
+
+
+struct SubThread
+{
+	int min;
+	int max;
+	int4 indices; //: X(Valid), Y(Fall - back), Z(SelfMapped), W(Absolute)
+};
+
+int CurrentSubThread = 0;
+int SubThreadCount  = 1;
+
+RWStructuredBuffer<SubThread> MappingData;
+RWStructuredBuffer<int> MappingIndices; //per targetVertex final indices
+RWStructuredBuffer<float> IndexData; //MaxDistance[4] : X(Valid), Y(Fall-back), Z(SelfMapped), W(Absolute)
+RWStructuredBuffer<float> MappingDistances; //per targetVertex
+RWStructuredBuffer<float3> MappingVertices; //per targetVertex
+RWStructuredBuffer<float3> MappingDeltas; //per targetVertex
+
+int WeightMatrixCount;
+RWStructuredBuffer<float2> WeightMatrix; // per targetVertex * WeightMatrixCount
+
+int MaxBones;
+float PassWeight;
+
+
+float evaluateCurve(float2 curve, float4 tangents, float value)
+{
+	float t = 1 - value;
+	float2 A = float2(0, curve.x), B = float2(1, curve.y), C = tangents.xy, D = tangents.zw,
+		x1 = t * A + value * B, x2 = t * B + value * C, x3 = t * C + value * D,
+		x4 = t * x1 + value * x2, x5 = t * x2 + value * x3, x6 = t * x4 + value * x5;
+	return x6.y;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void PrePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	//MappingData[ix * SubThreadCount].indices = int4(-1, -1, -1, -1);
+
+	uint totalCount = SourceVertexCount;
+	uint numberOfThreads = SubThreadCount;
+	int parts = totalCount / numberOfThreads;
+	int curentAmount = 0;
+	for (int i = 0; i < SubThreadCount; i++)
+	{
+		int threadIndex = ix * SubThreadCount + i;
+		int amount = i == SubThreadCount - 1 ? SourceVertexCount - curentAmount : clamp(parts, 0, SourceVertexCount - curentAmount);
+		MappingData[threadIndex].min = curentAmount;
+		MappingData[threadIndex].max = curentAmount + amount;
+		MappingData[threadIndex].indices = int4(-1, -1, -1, -1);;
+		curentAmount += amount;
+	}
+}
+
+int4 SearchComplex(int ix, int minCount, int maxCount)
+{
+	int4 mapData = int4(-1, -1, -1, 0);;
+
+	for (int i = minCount; i < maxCount; i++)
+	{
+		int iy = i;
+
+		int mappedIndex = mapData.x;
+
+		float dis = distance(MappingVertices[ix], SourceVertices[iy]);
+		float dis2 = mappedIndex > -1 ? distance(MappingVertices[ix], SourceVertices[mappedIndex]) : PositiveInfinity;
+
+		if (dis <= dis2)
+		{
+			mapData.w = iy;
+
+			if (UseTargetBoneFilter)
+			{
+				if (TargetWeights[ix].weights.x > 0.0 && TargetInvalidBones[TargetWeights[ix].indices.x] > 0)  continue;
+				if (TargetWeights[ix].weights.y > 0.0 && TargetInvalidBones[TargetWeights[ix].indices.y] > 0) continue;
+				if (TargetWeights[ix].weights.z > 0.0 && TargetInvalidBones[TargetWeights[ix].indices.z] > 0) continue;
+				if (TargetWeights[ix].weights.w > 0.0 && TargetInvalidBones[TargetWeights[ix].indices.w] > 0) continue;
+			}
+
+			if (UseSourceBoneFilter)
+			{
+				if (SourceWeights[iy].weights.x > 0.0 && SourceInvalidBones[SourceWeights[iy].indices.x] > 0) continue;
+				if (SourceWeights[iy].weights.y > 0.0 && SourceInvalidBones[SourceWeights[iy].indices.y] > 0) continue;
+				if (SourceWeights[iy].weights.z > 0.0 && SourceInvalidBones[SourceWeights[iy].indices.z] > 0) continue;
+				if (SourceWeights[iy].weights.w > 0.0 && SourceInvalidBones[SourceWeights[iy].indices.w] > 0) continue;
+			}
+
+			if (CompareWeights)
+			{
+				if (SourceWeights[iy].indices.x != TargetWeights[ix].indices.x)  dis *= 1.001;// continue;continue;
+			}
+
+			if (CompareSubMesh && TargetSubMesh[ix] != SourceSubMesh[iy])
+			{
+				dis *= 1.001; continue;
+			}
+
+			if (CompareUV)
+			{
+				float disUV = distance(TargetUV[ix], SourceUV[iy]) * dis;
+				float disUV2 = mappedIndex > -1 ? distance(TargetUV[ix], SourceUV[mappedIndex]) * dis : PositiveInfinity;
+				if (disUV > disUV2) dis *= 1.1;
+			}
+
+			if (CompareNormals)
+			{
+				float disNormal = dot(TargetNormals[ix], SourceNormals[iy]);
+				float disNormal2 = mappedIndex > -1 ? dot(TargetNormals[ix], SourceNormals[mappedIndex]) : -1;
+
+				if (disNormal > disNormal2) dis *= 1.1;
+
+			}
+
+			if (CompareTangents)
+			{
+				float disTangent = distance(TargetTangents[ix], SourceTangents[iy]) * dis;
+				float disTangent2 = mappedIndex > -1 ? distance(TargetTangents[ix], SourceTangents[mappedIndex]) : PositiveInfinity;
+
+				if (disTangent > disTangent2) dis *= 1.1;
+			}
+
+			if (UseMaxDistance)
+			{
+				if (dis < MaxDistance)
+				{
+					mapData.x = iy;
+				}
+			}
+			else
+			{
+				mapData.x = iy;
+			}
+		}
+	}
+	return mapData;
+}
+
+int4 SearchSimple(int ix, int minCount, int maxCount)
+{
+	int4 mapData = int4(-1, -1, -1, 0);;
+
+	for (int i = minCount; i < maxCount; i++)
+	{
+		int iy = i;
+
+		int mappedIndex = mapData.x;
+
+		float dis = distance(MappingVertices[ix], SourceVertices[iy]);
+		float dis2 = mappedIndex > -1 ? distance(MappingVertices[ix], SourceVertices[mappedIndex]) : PositiveInfinity;
+
+		if (dis <= dis2)
+		{
+			mapData.w = iy;
+
+			if (UseMaxDistance)
+			{
+				if (dis < MaxDistance)
+				{
+					mapData.x = iy;
+				}
+			}
+			else
+			{
+				mapData.x = iy;
+			}
+		}
+	}
+	return mapData;
+}
+
+int4 FallbackSimple(int ix, int minCount, int maxCount, int4 map)
+{
+	int4 mapData = map;
+	for (int i = minCount; i < maxCount; i++)
+	{
+		int iy = i;
+
+		if (MappingData[iy  *  SubThreadCount].indices.x < 0) continue;
+
+		float dis = distance(MappingVertices[ix], MappingVertices[iy]);
+		float dis2 = mapData.z > -1 ? distance(MappingVertices[ix], MappingVertices[mapData.z]) : PositiveInfinity;
+
+		if (dis < dis2)
+		{
+			mapData.y = MappingData[iy  *  SubThreadCount].indices.x;
+			mapData.z = iy;
+		}
+	}
+	return mapData;
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void SearchSinglePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	if (UseTargetBoneFilter || UseTargetBoneFilter || CompareWeights || CompareSubMesh || CompareNormals || CompareTangents)
+	{
+		MappingData[ix * SubThreadCount].indices = SearchComplex(ix, 0, SourceVertexCount);
+	}
+	else 
+	{
+		MappingData[ix * SubThreadCount].indices = SearchSimple(ix, 0, SourceVertexCount);
+	}
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void FallbackSinglePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+	if (MappingData[ix * SubThreadCount].indices.x > 0) return;
+
+	MappingData[ix * SubThreadCount].indices = FallbackSimple(ix, 0, SourceVertexCount, MappingData[ix * SubThreadCount].indices);
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void SearchMultiPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	int threadIndex = ix * SubThreadCount + CurrentSubThread;
+
+	if (UseTargetBoneFilter || UseTargetBoneFilter || CompareWeights || CompareSubMesh || CompareNormals || CompareTangents)
+	{
+		MappingData[threadIndex].indices = SearchComplex(ix, MappingData[threadIndex].min, MappingData[threadIndex].max);
+	}
+	else
+	{
+		MappingData[threadIndex].indices = SearchSimple(ix, MappingData[threadIndex].min, MappingData[threadIndex].max);
+	}
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void SearchMultiPostPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+	int4 closestIndex = MappingData[ix * SubThreadCount].indices;
+	float closestDistance = PositiveInfinity;
+	for (int i = 0; i < SubThreadCount; i++)
+	{
+		int sourceIndex = ix * SubThreadCount + i;
+		int4 mappingData = MappingData[sourceIndex].indices;
+
+		int mappedIndex = mappingData.x > -1 ? mappingData.x : mappingData.y;
+		mappedIndex = mappedIndex < 0 ? mappingData.w : mappedIndex;
+
+		float dis = distance(MappingVertices[ix], SourceVertices[mappedIndex]);
+		if (dis < closestDistance)
+		{
+			closestDistance = dis;
+			closestIndex = mappingData;
+		}
+	}
+	MappingData[ix * SubThreadCount].indices = closestIndex;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void IndexRetargetingPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	int mappedIndex = MappingData[ix * SubThreadCount].indices.x > -1 ? MappingData[ix * SubThreadCount].indices.x : MappingData[ix * SubThreadCount].indices.y;
+	MappingIndices[ix] = mappedIndex < 0 ? MappingData[ix * SubThreadCount].indices.w : mappedIndex;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void WeightedDistancePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	float4 maxValue = Vector4Zero;
+	for (int i = 0; i < TargetVertexCount; i++)
+	{
+		int iy = i;
+		if (MappingData[iy  *  SubThreadCount].indices.x > -1) //WithInRange X(Valid)
+		{
+			maxValue.x = max(distance(MappingVertices[iy], SourceVertices[MappingData[iy  *  SubThreadCount].indices.x]), maxValue.x);
+		}
+		else if (MappingData[iy  *  SubThreadCount].indices.y > -1) //OutOfRange: Y(Fall-back)  Z(SelfMapped)
+		{
+			maxValue.y = max(distance(MappingVertices[iy], SourceVertices[MappingData[iy  *  SubThreadCount].indices.y]), maxValue.y);
+			maxValue.z = max(distance(MappingVertices[iy], MappingVertices[MappingData[iy  *  SubThreadCount].indices.z]), maxValue.z);
+		}
+		else if (MappingData[iy  *  SubThreadCount].indices.w > -1) //OutOfBounds: W(Absolute)
+		{
+			maxValue.w = max(distance(MappingVertices[iy], SourceVertices[MappingData[iy  *  SubThreadCount].indices.w]), maxValue.w);
+		}
+	}
+
+	float power = 1;
+
+	if (MappingData[ix * SubThreadCount].indices.x > -1) //WithInRange X
+	{
+		power = distance(MappingVertices[ix], SourceVertices[MappingData[ix * SubThreadCount].indices.x]) / maxValue.x * 1.0;
+	}
+	else if (MappingData[ix * SubThreadCount].indices.y > -1) //OutOfRange YZ
+	{
+		power = distance(MappingVertices[ix], SourceVertices[MappingData[ix * SubThreadCount].indices.y]) / maxValue.y * 0.5;
+		power += distance(MappingVertices[ix], MappingVertices[MappingData[ix * SubThreadCount].indices.z]) / maxValue.z * 0.5;
+	}
+	else if (MappingData[ix * SubThreadCount].indices.w > -1) //OutOfBounds W
+	{
+		power = distance(MappingVertices[ix], SourceVertices[MappingData[ix * SubThreadCount].indices.w]) / maxValue.w * 1.0;
+	}
+
+	power = clamp(power, 0.0, 1.0);
+
+	MappingDistances[ix] = evaluateCurve(SurfaceCurve, SurfaceCurveTangents, power);
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void MaxDistancePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+}
+
+int GetBoneIndex(int4 bw, int channel)
+{
+	if (channel == 0) return bw.x;
+	else if (channel == 1) return bw.y;
+	else if (channel == 2) return bw.z;
+	else if (channel == 3) return bw.w;
+	return 0;
+}
+
+float GetBoneWeight(float4 bw, float channel)
+{
+	if (channel == 0) return bw.x;
+	else if (channel == 1) return bw.y;
+	else if (channel == 2) return bw.z;
+	else if (channel == 3) return bw.w;
+	return 0;
+}
+
+int4 SetBoneIndex(int4 bw, int channel, int value)
+{
+	int4 weight = bw;
+	if (channel == 0) weight.x = value;
+	else if (channel == 1) weight.y = value;
+	else if (channel == 2) weight.z = value;
+	else if (channel == 3) weight.w = value;
+	return weight;
+}
+
+float4 SetBoneWeight(float4 bw, int channel, float value)
+{
+	float4 weight = bw;
+	if (channel == 0) weight.x = value;
+	else if (channel == 1) weight.y = value;
+	else if (channel == 2) weight.z = value;
+	else if (channel == 3) weight.w = value;
+	return weight;
+}
+
+int GetBoneIndex(BoneWeights bw, int channel) { return GetBoneIndex(bw.indices, channel); }
+
+float GetBoneWeight(BoneWeights bw, float channel) { return GetBoneWeight(bw.weights, channel); }
+
+void AddWeight(int ix, int mappedIndex, float power)
+{
+	float passWeight = PassWeight;//PassWeight > 0.0 ? PassWeight : 1.0;
+	int4 indices;
+	float4 weights;
+
+	if (mappedIndex > -1)
+	{
+		indices = SourceWeights[mappedIndex].indices;
+		weights = SourceWeights[mappedIndex].weights;
+	}
+	else { indices = int4(0, 0, 0, 0); weights = float4(1, 0, 0, 0); }
+
+	int count = WeightMatrixCount;
+
+	for (int channel = 0; channel < 4; channel++)
+	{
+		float channelWeight = GetBoneWeight(SourceWeights[mappedIndex], channel);
+		if (channelWeight <= 0.0) continue;
+		int channelIndex = GetBoneIndex(SourceWeights[mappedIndex], channel);
+		if (channelIndex < 0) continue;
+
+		int weightKey = -1;
+		float minWeight = PositiveInfinity;
+		bool indexFound = false;
+
+		for (int i = 0; i < count; i++)
+		{
+			int matrixindex = ix * count + i;
+			float2 iw = WeightMatrix[matrixindex];
+			if (iw.x <= 0.0 && iw.y <= 0.0)
+			{
+				weightKey = matrixindex;
+				break;
+			}
+			if (iw.x == channelIndex)
+			{
+				weightKey = matrixindex;
+				indexFound = true;
+				break;
+			}
+			if (iw.y < minWeight)
+			{
+				weightKey = matrixindex;
+				minWeight = iw.y;
+			}
+		}
+
+		if (weightKey < 0) continue;
+
+		WeightMatrix[weightKey].x = channelIndex;
+
+		float channelPower = channelWeight * power * passWeight;
+
+		if (indexFound)
+			WeightMatrix[weightKey].y += channelPower;
+		else
+			WeightMatrix[weightKey].y = channelPower;
+
+		WeightMatrix[weightKey].y += SurfaceWeight * MappingDistances[ix] * channelPower;;
+
+		//float surfaceWeight; 
+
+	/*	if (channelWeight > 0.91)
+			WeightMatrix[weightKey].y += channelWeight * surfaceWeight *  0.51;
+		else if (channelWeight > 0.81)
+			WeightMatrix[weightKey].y += channelWeight * surfaceWeight * 0.41;
+		else if (channelWeight > 0.71)
+			WeightMatrix[weightKey].y += channelWeight * surfaceWeight * 0.31;
+		else if (channelWeight > 0.61)
+			WeightMatrix[weightKey].y += channelWeight * surfaceWeight * 0.21;
+		else if (channelWeight > 0.51)
+			WeightMatrix[weightKey].y += channelWeight * surfaceWeight * 0.11;*/
+	}
+}
+
+
+float GetAjacentWeight(int ix) 
+{
+	float weight = 0;
+	float totalDistance = 0.0;
+	float maxDistance = 0.0;
+	float count = 0;
+	int i;
+	for (i = 0; i < TargetAdjacentCount; i++)
+	{
+		int sourceIndex = ix * TargetAdjacentCount + i;
+		int weightIndex = TargetAdjacency[sourceIndex];
+		if (weightIndex < 0) break;
+		float dis = distance(MappingVertices[ix], MappingVertices[weightIndex]);
+		totalDistance += dis;
+		maxDistance = max(dis, maxDistance);
+		count++;
+	}
+
+	if (maxDistance <= 0.0) return weight;
+
+	for (i = 0; i < TargetAdjacentCount; i++)
+	{
+		int sourceIndex = ix * TargetAdjacentCount + i;
+		int weightIndex = TargetAdjacency[sourceIndex];
+		if (weightIndex < 0) break;
+
+		float power = 1.0 - (distance(MappingVertices[ix], MappingVertices[weightIndex]) / totalDistance);
+		power /= count;
+		weight += power;
+	}
+	return weight;
+}
+
+void AddAjacentWeight(int ix, int mappedIndex, float totalDistance)
+{
+	for (int i = 0; i < TargetAdjacentCount; i++)
+	{
+		int sourceIndex = ix * TargetAdjacentCount + i;
+		int weightIndex = TargetAdjacency[sourceIndex];
+		if (weightIndex < 0) break;
+		float power = 1.0 - (distance(MappingVertices[ix], MappingVertices[weightIndex]) / totalDistance);
+		AddWeight(weightIndex, mappedIndex, power);
+	}
+}
+
+float GetRadialWeight(int ix)
+{
+	float weight = 0;
+	float totalDistance = 0.0;
+	float maxDistance = 0.0;
+	float count = 0;
+	int i;
+	for (i = 0; i < TargetRadialAdjCount; i++)
+	{
+		int sourceIndex = ix * TargetRadialAdjCount + i;
+		int weightIndex = TargetRadialAdj[sourceIndex].x;
+		float dis = distance(MappingVertices[ix], MappingVertices[weightIndex]);
+		totalDistance += dis;
+		maxDistance = max(dis, maxDistance);
+		count++;
+	}
+
+	if (totalDistance <= 0.0) return weight;
+
+	for (i = 0; i < TargetRadialAdjCount; i++)
+	{
+		int sourceIndex = ix * TargetRadialAdjCount + i;
+		int weightIndex = TargetRadialAdj[sourceIndex].x;
+		float power = 1.0 - (distance(MappingVertices[ix], MappingVertices[weightIndex]) / totalDistance);
+		power /= count;
+		weight += power;
+	}
+	return weight;
+}
+
+void AddRadialWeight(int ix, int mappedIndex, float totalDistance)
+{
+	if (totalDistance <= 0.0) return;
+
+	for (int i = 0; i < TargetRadialAdjCount; i++)
+	{
+		int sourceIndex = ix * TargetRadialAdjCount + i;
+		int weightIndex = TargetRadialAdj[sourceIndex].x;
+		float power = 1.0 - (distance(MappingVertices[ix], MappingVertices[weightIndex]) / totalDistance);
+		AddWeight(weightIndex, mappedIndex, TargetRadialAdj[sourceIndex].y + power);
+	}
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void AddWeightsPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+	int mappedIndex = MappingData[ix * SubThreadCount].indices.x > -1 ? MappingData[ix * SubThreadCount].indices.x : MappingData[ix * SubThreadCount].indices.y;
+	if (mappedIndex < 0) mappedIndex = MappingData[ix * SubThreadCount].indices.w;
+
+	float weight = 1.0;
+	weight += GetAjacentWeight(ix);
+	if (TargetRadialAdjCount < 2) 
+	{
+		AddWeight(ix, mappedIndex, 1.0);
+	}
+	else
+	{
+		weight += GetRadialWeight(ix);
+		AddRadialWeight(ix, mappedIndex, weight);
+	}
+
+	AddAjacentWeight(ix, mappedIndex, weight);
+}
+
+
+void RetargetWeights(int ix)
+{
+	int id = TargetDuplicates[ix] != ix ? TargetDuplicates[ix] : ix;
+
+	int4 indices = int4(-1, -1, -1, -1);
+	float4 weights = float4(0.0, 0.0, 0.0, 0.0);
+
+	int channel = 0, i = 0, count = WeightMatrixCount;
+
+	int maxBones = clamp(MaxBones, 1, 4);
+	for (channel = 0; channel < maxBones; channel++)
+	{
+		int weightKey = -1;
+		float maxWeight = 0;
+
+		for (i = 0; i < count; i++)
+		{
+			float2 iw = WeightMatrix[id * count + i];
+			if (iw.x <= 0 && iw.y <= 0.0) continue;
+			if (iw.x == indices.x || iw.x == indices.y || iw.x == indices.z || iw.x == indices.w) continue;
+			if (iw.y > maxWeight)
+			{
+				weightKey = i;
+				maxWeight = iw.y;
+			}
+		}
+		if (weightKey < 0) break;
+
+		int matrixindex = id * count + weightKey;
+
+		indices = SetBoneIndex(indices, channel, WeightMatrix[matrixindex].x);
+		weights = SetBoneWeight(weights, channel, WeightMatrix[matrixindex].y);
+	}
+
+	for (channel = 0; channel < 4; channel++)
+	{
+		if (GetBoneIndex(indices, channel) < 0) { indices = SetBoneIndex(indices, channel, 0); }
+	}
+
+	float total = weights.x + weights.y + weights.z + weights.w;
+
+	if (total > 0.0) { TargetWeights[ix].indices = indices; TargetWeights[ix].weights = weights / total; }
+	else { TargetWeights[ix].indices = int4(0, 0, 0, 0); TargetWeights[ix].weights = float4(1.0, 0.0, 0.0, 0.0); }
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void WeightIndexRetargetingPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	RetargetWeights(ix);
+}
+
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void SmoothDeltaPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	float x = 0, y = 0, z = 0;
+	int i = 0, count = 0;
+	for (i; i < TargetAdjacentCount; i++)
+	{
+		int sourceIndex = ix * TargetAdjacentCount + i;
+		int weightIndex = TargetAdjacency[sourceIndex];
+		if (sourceIndex < 0 || weightIndex < 0) continue;
+		x += MappingDeltas[weightIndex].x - MappingDeltas[ix].x;
+		y += MappingDeltas[weightIndex].y - MappingDeltas[ix].y;
+		z += MappingDeltas[weightIndex].z - MappingDeltas[ix].z;
+		count++;
+	}
+	count = max(count, 1);
+	MappingDeltas[ix].x = MappingDeltas[ix].x + x / count;
+	MappingDeltas[ix].y = MappingDeltas[ix].y + y / count;
+	MappingDeltas[ix].z = MappingDeltas[ix].z + z / count;
+}
+
+float3 clampMagnitude(float3 position, float max)
+{
+	float magnitude = distance(float3(0, 0, 0), position);
+	if (magnitude > max) return normalize(position) * (max);
+	return position;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void InflationPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	int id = TargetDuplicates[ix] != ix ?  TargetDuplicates[ix] : ix;
+
+	float inflate = abs(Inflation);
+	float3 clampedValue = Inflation == 0 ? TargetVertices[id] - MappingDeltas[id] : clampMagnitude(TargetVertices[id] - MappingDeltas[id], inflate);
+	float3 value = TargetVertices[id];
+	if (Inflation < 0.0) value -= clampedValue;
+	else value += clampedValue;
+
+	MappingVertices[ix] = value;
+}

@@ -1,0 +1,104 @@
+﻿#pragma kernel LinearSkinPass
+#pragma kernel LinearShapePass
+
+#define ThreadGroupSizeX 1024
+#define Vector3Zero float3(0.0, 0.0, 0.0)
+#define PositiveInfinity 1e+38
+
+int VertexCount;
+
+StructuredBuffer<float3> Vertices;
+StructuredBuffer<float3> Normals;
+StructuredBuffer<float4> Tangents;
+
+struct BoneWeights
+{
+	float4 weights;
+	int4 indices;
+};
+
+StructuredBuffer<BoneWeights> Weights;
+
+StructuredBuffer<float4x4> Bones;
+
+RWStructuredBuffer<float3> OutVertices;
+RWStructuredBuffer<float3> OutNormals;
+RWStructuredBuffer<float4> OutTangents;
+
+
+//LinearShapePass
+float MinDelta;
+StructuredBuffer<float3> Tangents3;
+RWStructuredBuffer<float3> OutTangents3;
+
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void LinearSkinPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float3 delta = Vertices[ix];
+	float3 normal = Normals[ix];
+	float3 tangent = Tangents[ix].xyz;
+
+	int4 boneIndices = Weights[ix].indices;
+	float4 boneWeights = Weights[ix].weights;
+
+	float4x4 bm = Bones[boneIndices.x] * boneWeights.x
+		+ Bones[boneIndices.y] * boneWeights.y
+		+ Bones[boneIndices.z] * boneWeights.z
+		+ Bones[boneIndices.w] * boneWeights.w;
+
+	OutVertices[ix] = mul(bm, float4(delta, 1)).xyz;
+	OutNormals[ix] = mul(bm, float4(normal, 0)).xyz;
+	OutTangents[ix].xyz = mul(bm, float4(tangent, 0)).xyz;
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void LinearShapePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float3 delta = Vertices[ix];
+	float3 normal = Normals[ix];
+	float3 tangent = Tangents3[ix];
+
+	int4 boneIndices = Weights[ix].indices;
+	float4 boneWeights = Weights[ix].weights;
+
+	float4x4 bm = Bones[boneIndices.x] * boneWeights.x
+		+ Bones[boneIndices.y] * boneWeights.y
+		+ Bones[boneIndices.z] * boneWeights.z
+		+ Bones[boneIndices.w] * boneWeights.w;
+
+	float minDelta = MinDelta == 0 ? PositiveInfinity : MinDelta;
+
+	if (distance(Vector3Zero, delta) < minDelta)
+	{
+		OutVertices[ix] = Vector3Zero;
+	}
+	else 
+	{
+		OutVertices[ix] = mul(bm, float4(delta, 1)).xyz;
+	}
+
+	if (distance(Vector3Zero, normal) < minDelta)
+	{
+		OutNormals[ix] = Vector3Zero;
+	}
+	else 
+	{
+		OutNormals[ix] = mul(bm, float4(normal, 0)).xyz;
+	}
+
+	if (distance(Vector3Zero, normal) < minDelta)
+	{
+		OutTangents3[ix] = Vector3Zero;
+	}
+	else
+	{
+		OutTangents3[ix] = mul(bm, float4(tangent, 0)).xyz;
+	}
+}

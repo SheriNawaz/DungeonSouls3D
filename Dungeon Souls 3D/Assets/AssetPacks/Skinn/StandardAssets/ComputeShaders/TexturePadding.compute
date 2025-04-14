@@ -1,0 +1,54 @@
+﻿#pragma kernel AlphaPadding
+#pragma kernel EdgeBlending
+
+float Size;
+
+Texture2D<float4> Source;
+RWTexture2D<float4> Destination;
+
+//https://answers.unity.com/questions/407214/gaussian-blur-shader.html#
+float normpdf(float x, float sigma)
+{
+	return 0.39894 * exp(-0.5 * x * x / (sigma * sigma)) / sigma;
+}
+
+[numthreads(8, 8, 1)]
+void AlphaPadding(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, uint groupIndex : SV_GroupIndex, uint3 id : SV_DispatchThreadID)
+{
+	const float minAlpha = 1e-12;
+	if (Source[id.xy].a < minAlpha) return;
+	const int iter = 1;
+	float4 color = Source[id.xy];
+	for (int i = -iter; i <= iter; ++i)
+	{
+		for (int j = -iter; j <= iter; ++j)
+		{
+			float2 uv = float2(id.x + i * Size, id.y + j * Size);
+			float4 c = Source[uv];
+			if (c.a > minAlpha) continue;
+			Destination[uv] = color;
+		}
+	}
+	Destination[id.xy] = Source[id.xy];
+}
+
+
+[numthreads(8, 8, 1)]
+void EdgeBlending(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, uint groupIndex : SV_GroupIndex, uint3 id : SV_DispatchThreadID)
+{
+	const float minAlpha = 1e-12;
+	if (Source[id.xy].a < minAlpha) return;
+	const int iter = 1;
+	float4 color = Source[id.xy];
+	for (int i = -iter; i <= iter; ++i)
+	{
+		for (int j = -iter; j <= iter; ++j)
+		{
+			float2 uv = float2(id.x + i * Size, id.y + j * Size);
+			float4 c = Source[uv];
+			if (c.a < minAlpha) continue;
+			Destination[uv] = color * (1 - c.a);
+		}
+	}
+	Destination[id.xy] = Source[id.xy];
+}

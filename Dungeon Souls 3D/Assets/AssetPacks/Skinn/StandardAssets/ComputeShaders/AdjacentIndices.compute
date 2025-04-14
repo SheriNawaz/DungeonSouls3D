@@ -1,0 +1,83 @@
+﻿#pragma kernel PreDistancePass
+#pragma kernel DistancePass
+#pragma kernel AdjacencyPass
+#pragma kernel FinalPass
+
+#define ThreadGroupSizeX 32
+#define ThreadGroupSizeY 32
+
+#define SingleThreadGroupSize 1024
+
+float MinDistance;
+int VertexCount;
+int AdjacentCount;
+
+StructuredBuffer<float3> Vertices;
+
+RWStructuredBuffer<int> VertexIndices;
+RWStructuredBuffer<int> Adjacency;
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void PreDistancePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+	VertexIndices[ix] = -1;
+}
+
+[numthreads(ThreadGroupSizeX, ThreadGroupSizeY, 1)]
+void DistancePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	int iy = ThreadGroupSizeY * groupID.y + groupThreadID.y;
+	if (iy >= VertexCount) return;
+
+	int index1 = VertexIndices[ix];
+	if (index1 == -1) index1 = ix;
+
+	int index2 = VertexIndices[iy];
+	if (index2 == -1) index2 = iy;
+
+	float dis = distance(Vertices[ix], Vertices[iy]);
+	if (dis < MinDistance)
+	{
+		int minIndex = min(index1, index2);
+		VertexIndices[ix] = minIndex;
+		VertexIndices[iy] = minIndex;
+	}
+}
+
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void AdjacencyPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	for (int i = 0; i < AdjacentCount; i++)
+	{
+		int index = ix * AdjacentCount + i;
+		Adjacency[index] = -1;
+	}
+}
+
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void FinalPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	int isource = VertexIndices[ix];
+	if (isource == ix) return;
+
+	for (int i = 0; i < AdjacentCount; i++)
+	{
+		int targetIndex = ix * AdjacentCount + i;
+		int soucreIndex = isource * AdjacentCount + i;
+		if (targetIndex < 0 || soucreIndex < 0) continue;
+		if (Adjacency[targetIndex] < 0) Adjacency[targetIndex] = Adjacency[soucreIndex];
+	}
+}

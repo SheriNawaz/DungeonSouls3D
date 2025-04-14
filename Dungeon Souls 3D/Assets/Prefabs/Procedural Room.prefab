@@ -1,0 +1,280 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4855480613247361699
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9192868014971698480}
+  - component: {fileID: 2436253589936440219}
+  - component: {fileID: 8572599170385936781}
+  m_Layer: 0
+  m_Name: Procedural Room
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9192868014971698480
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4855480613247361699}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2436253589936440219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4855480613247361699}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c904722e6b9e2884285e70c00bc40002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  roomType: 0
+  floorPrefabs:
+  - {fileID: 3708327970968581019, guid: 9d6223bd6238ef446b379a448839b2e1, type: 3}
+  - {fileID: 673184297855515407, guid: 22bf5ea3a0037964e8368b2aaaad2354, type: 3}
+  - {fileID: 4447015681846607296, guid: 10ea44e4a1974ea4cb3b8f0d22805155, type: 3}
+  floorProbabilities:
+  - 0.45
+  - 0.45
+  - 0.1
+  wallPrefabs:
+  - {fileID: 3987669506817689135, guid: b8c29f506530a784c82a67fc66e786d6, type: 3}
+  - {fileID: 3753038290096268869, guid: 45ca9ecba7cdf1e489b98931c674ca19, type: 3}
+  - {fileID: 2590801022025885353, guid: acc73808b2d1e1d47ba3791c9773c975, type: 3}
+  - {fileID: 4644692781693133788, guid: 122e29567bdda98419788af22ce811d6, type: 3}
+  hasNorthDoor: 1
+  hasSouthDoor: 1
+  hasEastDoor: 1
+  hasWestDoor: 1
+  propSpacing: 2
+  avoidDoorways: 1
+  doorwayAvoidanceRadius: 2
+  roomWidth: 6
+  roomLength: 6
+  wallAlignmentOffset: 0.2
+  normalRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 952783696, guid: f3ccfa9003e9e7e4799853e37266bcd3, type: 3}
+    - {fileID: 6384062668114004037, guid: ddd57d2b3f671e24dad00d55bc2f70f3, type: 3}
+    - {fileID: 8355577840718675571, guid: 3140b3279285c624e866619234eb12d9, type: 3}
+    - {fileID: 1516204421225355874, guid: e932ca3a6278fd8489bb0a80eb24048e, type: 3}
+    - {fileID: 5364223807928495789, guid: 376da426e368b614baa3d3aa17cdb455, type: 3}
+    - {fileID: 6500982278920226610, guid: c3f2ddc52eeb7e84cb339ad10597ab01, type: 3}
+    - {fileID: 1314657680507175842, guid: 5c99bc645490f8a4d8539800697c0ee0, type: 3}
+    - {fileID: 658814056052263164, guid: bf4714b4605a394488134de8baf4248a, type: 3}
+    - {fileID: 2238774848667802588, guid: bd37217dd9236fe4faaccef83a7b6ee0, type: 3}
+    - {fileID: 248714922731312030, guid: ac2db91ef5d17884eb5f99928c2e11d7, type: 3}
+    - {fileID: 77897640, guid: 713bd371982dd4a48a4f06cd991ad857, type: 3}
+    - {fileID: 643315471, guid: 6e700d57fb522b14ab1cf6c3515837dd, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 0
+    centerPropPrefab: {fileID: 0}
+  treasureRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 7795256517292645473, guid: 553cd44a58dd98f46848ff0b39985ff9, type: 3}
+    - {fileID: 2167474435190666702, guid: e9f7f73b83998cc48b242e35b5dd2fc5, type: 3}
+    - {fileID: 1647118318, guid: 4dd5b096b1447b2458aaf237d9bc1520, type: 3}
+    - {fileID: 6384062668114004037, guid: ddd57d2b3f671e24dad00d55bc2f70f3, type: 3}
+    - {fileID: 1452325626, guid: eeb688f47bc56c942aaee401edf187ec, type: 3}
+    - {fileID: 1107664363, guid: fdc5f76cb8f930243ab28c2a22aa3379, type: 3}
+    - {fileID: 1891320786, guid: a1f3f1e47ecc6d848bf23ac78e549112, type: 3}
+    - {fileID: 951352385, guid: ce6c69efff77b7641b6888ceffacc8a8, type: 3}
+    - {fileID: 1256009076, guid: 5a05f806672639c4d957cf15ddd3a65c, type: 3}
+    - {fileID: 988107754705838011, guid: 2adadb199ba7aeb4d991ed21ca3137bd, type: 3}
+    - {fileID: 4548812219088985079, guid: 51f7a22a45406964c8a6a01ce9c5bf76, type: 3}
+    - {fileID: 8354650310511298713, guid: beccfc1adb40c10488d48545838a63a9, type: 3}
+    - {fileID: 2701665430050440195, guid: 93f65a902ba32e14cb4ea3272a978b66, type: 3}
+    propDensity: 0.202
+    forceCenterProp: 1
+    centerPropPrefab: {fileID: 4548812219088985079, guid: 51f7a22a45406964c8a6a01ce9c5bf76, type: 3}
+  blacksmithRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 3371383963182515921, guid: f1450ccef5c4cb140a1df2548734fdcc, type: 3}
+    - {fileID: 1480133058, guid: bce8408c12caa1d4082493287f0c0e04, type: 3}
+    - {fileID: 1283997953, guid: caea80c109e5bce45879ed16d1883604, type: 3}
+    - {fileID: 8253114790470183747, guid: f3726d4704667db4d83efa8199e8449e, type: 3}
+    - {fileID: 935617562, guid: 604e54ca1ea79174bb1dacfa5b243053, type: 3}
+    - {fileID: 305716340, guid: efd73b770561f1e44a9a13dfaa838213, type: 3}
+    - {fileID: 1782279579, guid: 6c8aad13c3867f44fafbb3497a4733b1, type: 3}
+    - {fileID: 1906129930, guid: 5edc4be595607e14880d1a821b980461, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 0
+    centerPropPrefab: {fileID: 0}
+  prisonRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 2449338111380396674, guid: a5eb48a5c116fac4c8b3bae3a1b9f3bd, type: 3}
+    - {fileID: 6500982278920226610, guid: c3f2ddc52eeb7e84cb339ad10597ab01, type: 3}
+    - {fileID: 6904453671086017888, guid: 0d059cb18b9c35444a4135d0cf3f50a0, type: 3}
+    - {fileID: 477010140994522491, guid: fd96634157f80ba428bcb6b378e23b7a, type: 3}
+    - {fileID: 6697849097686705020, guid: f53785853c6c55a49aeccb043d010380, type: 3}
+    - {fileID: 3285529577803389785, guid: afb7dc097faf4084886eb9c3da7a051f, type: 3}
+    - {fileID: 309381343331147570, guid: ce58807f10b9d8f469c1da9f5f0a75ca, type: 3}
+    - {fileID: 723938096, guid: af7cbe86de837d74f98e73af8d226b3b, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 0
+    centerPropPrefab: {fileID: 0}
+  mapRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 3610806371841776068, guid: 200e6ccc86e96d44a8b1646cda850c21, type: 3}
+    - {fileID: 1647118318, guid: 4dd5b096b1447b2458aaf237d9bc1520, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 1
+    centerPropPrefab: {fileID: 1479563613570312076, guid: 497567d2d3552b941897169aa1c15b08, type: 3}
+  keyRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 1647118318, guid: 4dd5b096b1447b2458aaf237d9bc1520, type: 3}
+    - {fileID: 7795256517292645473, guid: 553cd44a58dd98f46848ff0b39985ff9, type: 3}
+    - {fileID: 2167474435190666702, guid: e9f7f73b83998cc48b242e35b5dd2fc5, type: 3}
+    - {fileID: 1647118318, guid: 4dd5b096b1447b2458aaf237d9bc1520, type: 3}
+    - {fileID: 6384062668114004037, guid: ddd57d2b3f671e24dad00d55bc2f70f3, type: 3}
+    - {fileID: 2087175645802117930, guid: e24935f928ce0ae4d8919abfe1236084, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 1
+    centerPropPrefab: {fileID: 1479563613570312076, guid: 497567d2d3552b941897169aa1c15b08, type: 3}
+  spawnPointRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 1479563613570312076, guid: 010fab5b564bbb943829b7463b4aef9b, type: 3}
+    - {fileID: 4548812219088985079, guid: 51f7a22a45406964c8a6a01ce9c5bf76, type: 3}
+    propDensity: 0.032
+    forceCenterProp: 1
+    centerPropPrefab: {fileID: 1704893301, guid: 60bb991efbe0e4348ab1b4c8b36b72c8, type: 3}
+  libraryRoomProps:
+    name: 
+    propPrefabs:
+    - {fileID: 1883534542, guid: 970e108d9b21cf24b832a2db0315e076, type: 3}
+    - {fileID: 1870573931, guid: 40268256cbceb634ba3a9521a9daec5f, type: 3}
+    - {fileID: 1303861125, guid: a893cbb83d34234429fc308cb643bd64, type: 3}
+    - {fileID: 82583132, guid: a15579731b920554c8ec390eef988e58, type: 3}
+    - {fileID: 2238774848667802588, guid: bd37217dd9236fe4faaccef83a7b6ee0, type: 3}
+    - {fileID: 8837694006211629010, guid: ddabe4f409d94f34ab08c38352c073f1, type: 3}
+    - {fileID: 1313783319754763808, guid: 714a01a37c57c71479c42f7471472216, type: 3}
+    - {fileID: 2182185726371965972, guid: 6d306b8a63b773047bb3f47d4edeeaf3, type: 3}
+    - {fileID: 4299904089720847254, guid: 8fd454ea17eef1d4899aaf0e5e53c5d2, type: 3}
+    propDensity: 0.1
+    forceCenterProp: 0
+    centerPropPrefab: {fileID: 1418166589, guid: 23397808734d7a2499d4aa14c430c486, type: 3}
+  normalRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  treasureRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  blacksmithRoofProps:
+    name: 
+    roofPropPrefabs:
+    - {fileID: 3539724703426742405, guid: 5e4c0fb0c4c12714e80f324f55d51ddf, type: 3}
+    - {fileID: 2977436727090832764, guid: 7f2b2d1eda669af45949aa5a2ad2efd3, type: 3}
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  prisonRoofProps:
+    name: 
+    roofPropPrefabs:
+    - {fileID: 3610806371841776068, guid: 200e6ccc86e96d44a8b1646cda850c21, type: 3}
+    - {fileID: 2449338111380396674, guid: a5eb48a5c116fac4c8b3bae3a1b9f3bd, type: 3}
+    roofPropDensity: 0.021
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  mapRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  keyRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  spawnPointRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  libraryRoofProps:
+    name: 
+    roofPropPrefabs: []
+    roofPropDensity: 0.1
+    heightOffset: 0.1
+    allowChandeliers: 1
+    chandelierPrefab: {fileID: 578558936870152242, guid: ff30e4f1591d8fe42bc7101077b2d905, type: 3}
+  wallProps:
+    name: 
+    wallPropPrefabs:
+    - {fileID: 6996719066108710876, guid: edffb633eff8b8241812350dc299d925, type: 3}
+    - {fileID: 3249053891106447004, guid: 9e9ba182ccadecc48b252f634ea7d5bc, type: 3}
+    - {fileID: 2020358127116279593, guid: 55abbcd45ab99da4abc3511b268df2f7, type: 3}
+    - {fileID: 3631734277929631697, guid: 028cfadc4908bac4bbd084671773a984, type: 3}
+    wallPropDensity: 0.655
+    heightVariation: 0.2
+    wallOffset: 0.15
+  enableWallProps: 1
+  wallPropChance: 1
+  minWallPropDistance: 1.5
+  roofPrefabs:
+  - {fileID: 182510848, guid: 5035294e597987445a2252709e8007b1, type: 3}
+  - {fileID: 8280760276242213767, guid: 87e2a079dac43ff418ca1f426c71f84d, type: 3}
+  - {fileID: 1603742014, guid: 40d47deaca22b9e4cbe24ddd6fc02670, type: 3}
+  roofProbabilities:
+  - 0.45
+  - 0.45
+  - 0.1
+  roofHeight: 4
+  enableRoof: 1
+  enableRoofProps: 1
+  minRoofPropDistance: 2
+  gridSystem: {fileID: 8572599170385936781}
+--- !u!114 &8572599170385936781
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4855480613247361699}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df34a6c0ec9d8774591e67ecd3510232, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cellSize: 1
+  showGrid: 1
+  respectRoomBoundaries: 1

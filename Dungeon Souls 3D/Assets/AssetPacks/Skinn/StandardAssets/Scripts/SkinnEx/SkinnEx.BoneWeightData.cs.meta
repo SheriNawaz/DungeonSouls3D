@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 2c5c426b5459eab44b866d8146afee9b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Scripts/SkinnEx/SkinnEx.BoneWeightData.cs
+  uploadId: 315444

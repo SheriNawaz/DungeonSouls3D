@@ -1,0 +1,138 @@
+﻿#pragma kernel ProjectDeltas
+#pragma kernel MagnitudePass
+
+#define ThreadGroupSizeX 1024
+#define Vector3Zero float3(0.0, 0.0, 0.0)
+
+static matrix IdentityMatrix =
+{
+	{ 1, 0, 0, 0 },
+	{ 0, 1, 0, 0 },
+	{ 0, 0, 1, 0 },
+	{ 0, 0, 0, 1 }
+};
+
+float3 clampMagnitude(float3 position, float max)
+{
+	float magnitude = distance(float3(0, 0, 0), position);
+	if (magnitude > max) return normalize(position) * (max);
+	return position;
+}
+
+float NormalIntensity;
+
+int TargetVertexCount;
+StructuredBuffer<float3> TargetVertices;
+StructuredBuffer<float3> TargetNormals;
+StructuredBuffer<float4> TargetTangents;
+
+StructuredBuffer<int> Mapping;
+StructuredBuffer<int> TargetDuplicates;
+
+float ExtraDeltaDistance;
+StructuredBuffer<float3> TargetExtraDeltas;
+
+int TargetRadialAdjCount;
+StructuredBuffer<float2> TargetRadialAdj;
+
+int SourceVertexCount;
+StructuredBuffer<float3> SourceVertices;
+StructuredBuffer<float3> SourceDeltas;
+
+RWStructuredBuffer<float3> OutVertices;
+RWStructuredBuffer<float3> OutNormals;
+RWStructuredBuffer<float3> OutTangents;
+
+RWStructuredBuffer<float4> OutMagnitude;
+
+float3 GetDelta(int ix, int iy, float weight)
+{
+	float magnitude = distance(Vector3Zero, SourceDeltas[iy]);
+	float power = (weight * magnitude) / magnitude;
+	float3 delta = clampMagnitude(-SourceDeltas[iy], power);
+
+	if (magnitude > 0.0001) 
+	{
+		float extraMagnitude = distance(Vector3Zero, TargetExtraDeltas[ix]);
+		float extraPower = clamp(extraMagnitude * 1000.0 / magnitude * extraMagnitude, 0, extraMagnitude);
+		float diff = distance((TargetVertices[ix] + delta), (SourceVertices[iy] + SourceDeltas[iy]));
+
+		delta -= TargetExtraDeltas[ix] * extraPower;
+	}
+
+	return delta;
+}
+
+float4x4 GetDeltaMatrix(float3 delta)
+{
+	float4x4 deltaMatrix = IdentityMatrix;
+	deltaMatrix[0][1] = delta.x; deltaMatrix[1][3] = delta.y; deltaMatrix[2][3] = delta.z;
+	return deltaMatrix;
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void MagnitudePass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix != 0) return;
+	if (TargetVertexCount <= 8000) return;
+
+	float magValue = 0;
+	float maxValue = 0;
+	for (int i = 0; i < SourceVertexCount; i++) 
+	{
+		float dis = distance(Vector3Zero, SourceDeltas[i]);
+		magValue += dis;
+		maxValue  = max(maxValue, dis);
+	}
+
+	OutMagnitude[0].x = magValue;
+	OutMagnitude[0].y = maxValue;
+}
+
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void ProjectDeltas (uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (ix >= TargetVertexCount) return;
+
+	int iy = Mapping[ix];
+
+	OutVertices[ix] = Vector3Zero;
+	OutNormals[ix] = Vector3Zero;
+	OutTangents[ix] = Vector3Zero;
+
+	float3 delta = Vector3Zero;
+	float mulitpier = 1.0;
+
+	if (TargetVertexCount < 8000) 
+	{
+		float threshold = OutMagnitude[0].x / (SourceVertexCount * 1.0);
+		if (threshold < 0.0001)
+		{
+			delta += GetDelta(ix, Mapping[ix], 1.0) * 0.9;
+			mulitpier = 0.1;
+		}
+	}
+
+	for (int i = 0; i < TargetRadialAdjCount; i++)
+	{
+		int sourceIndex = ix * TargetRadialAdjCount + i;
+		if (sourceIndex < 0) break;
+		int weightIndex = TargetRadialAdj[sourceIndex].x;
+		if (sourceIndex < 0) break;
+
+		float weight = TargetRadialAdj[sourceIndex].y;
+		weight *= mulitpier;
+		delta += GetDelta(ix, Mapping[weightIndex], 1.0) * weight;
+	}
+
+	float4x4 deltaVertex = GetDeltaMatrix(delta);
+	float4x4 deltaNormal = GetDeltaMatrix(delta * (NormalIntensity <= 0 ? 6.0 : NormalIntensity * 1.0));
+	int id = TargetDuplicates[ix] != ix ? TargetDuplicates[ix] : ix;
+
+	OutVertices[ix] = TargetVertices[id] - mul(deltaVertex, float4(TargetVertices[id], 1.0)).xyz;
+	OutNormals[ix] = TargetNormals[id] - normalize(mul(deltaNormal, float4(TargetNormals[id], 1.0)).xyz);
+	OutTangents[ix] = TargetTangents[id].xyz - normalize(mul(deltaNormal, float4(TargetTangents[id].xyz, 1.0)).xyz);
+}

@@ -1,0 +1,59 @@
+﻿#pragma kernel Vector3SimpleMask
+#pragma kernel Vector3BoneWeightMask
+#pragma kernel Vector3FloatMask
+
+#define SingleThreadGroupSize 1024
+
+int VertexCount;
+int BoneCount;
+float Power;
+
+struct BoneWeights
+{
+	float4 weights;
+	int4 indices;
+};
+
+StructuredBuffer<float> InFloat;
+
+StructuredBuffer<BoneWeights> InBoneWeight;
+RWStructuredBuffer<int> InBones;
+
+RWStructuredBuffer<float3> OutVector3;
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void Vector3SimpleMask(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+	OutVector3[ix] *= Power;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void Vector3BoneWeightMask(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float weight = 0;
+	int count = 0;
+	for (int i = 0; i < BoneCount; i++)
+	{
+		if (InBones[i] == InBoneWeight[ix].indices.x) { weight += InBoneWeight[ix].weights.x; count++; }
+		else if(InBones[i] == InBoneWeight[ix].indices.y) { weight += InBoneWeight[ix].weights.y; count++; }
+		else if (InBones[i] == InBoneWeight[ix].indices.z) { weight += InBoneWeight[ix].weights.z; count++; }
+		else if (InBones[i] == InBoneWeight[ix].indices.w) { weight += InBoneWeight[ix].weights.w; count++; }
+	}
+
+	//if (count > 0) weight /= count;
+	OutVector3[ix] = OutVector3[ix] * (weight * Power);
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void Vector3FloatMask(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	OutVector3[ix] *= InFloat[ix] * Power;
+}

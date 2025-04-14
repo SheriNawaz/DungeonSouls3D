@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 6588c45d5407a19408bbfdda196661a4
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Extensible Inventory System
+  packageVersion: 1.4
+  assetPath: Assets/InventorySystem/GDS/Demos/Basic/Scene/Prefabs/Interactible.prefab
+  uploadId: 741406

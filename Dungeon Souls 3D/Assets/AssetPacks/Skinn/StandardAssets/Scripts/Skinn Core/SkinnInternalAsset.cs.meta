@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: c2ab94672e4a6244caaf039c156a8102
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - arrayMapping: {fileID: 7200000, guid: f939c2ad7e0633848aecf61124cdfe33, type: 3}
+  - boundingBox: {fileID: 7200000, guid: 92625a34a9ce712429b3963c0b0454de, type: 3}
+  - linearSkinning: {fileID: 7200000, guid: 1d64fa01720439341a5b6e90e0f4448f, type: 3}
+  - linearTransform: {fileID: 7200000, guid: 13c2bd18ff854a546ae8fdcdc7d679d3, type: 3}
+  - linearMapping: {fileID: 7200000, guid: 1d64fa01720439341a5b6e90e0f4448f, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Scripts/Skinn Core/SkinnInternalAsset.cs
+  uploadId: 315444

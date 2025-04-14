@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 38c6e9eba8eef114d9e9b9ca8ae7d8d5
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Scripts/Skinn Core/SkinnGizmos.cs
+  uploadId: 315444

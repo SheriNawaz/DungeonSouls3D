@@ -1,0 +1,24 @@
+﻿#pragma kernel BakeDeltas
+
+#define ThreadGroupSizeX 1024
+
+int VertexCount;
+
+StructuredBuffer<float3> Vertices;
+StructuredBuffer<float3> Normals;
+StructuredBuffer<float3> Tangents;
+
+RWStructuredBuffer<float3> OutVertices;
+RWStructuredBuffer<float3> OutNormals;
+RWStructuredBuffer<float4> OutTangents;
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void BakeDeltas (uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int index = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (index >= VertexCount) return;
+
+	OutVertices[index] += Vertices[index];
+	OutNormals[index] += Normals[index];
+	OutTangents[index].xyz += Tangents[index];
+}

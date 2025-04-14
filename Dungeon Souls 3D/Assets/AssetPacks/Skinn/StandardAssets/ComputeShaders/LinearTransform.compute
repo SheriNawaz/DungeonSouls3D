@@ -1,0 +1,31 @@
+﻿#pragma kernel Vector3Pass
+#pragma kernel Vector4Pass
+
+#define ThreadGroupSizeX 1024
+
+int VertexCount;
+float4x4 Transform;
+bool IsDirection = false;
+
+StructuredBuffer<float3> InVector3;
+RWStructuredBuffer<float3> OutVector3;
+
+StructuredBuffer<float4> InVector4;
+RWStructuredBuffer<float4> OutVector4;
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void Vector3Pass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int index = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (index >= VertexCount) return;
+	OutVector3[index] = mul(Transform, float4(InVector3[index], IsDirection ? 0 : 1)).xyz;
+}
+
+[numthreads(ThreadGroupSizeX, 1, 1)]
+void Vector4Pass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int index = ThreadGroupSizeX * groupID.x + groupThreadID.x;
+	if (index >= VertexCount) return;
+	OutVector4[index].xyz = mul(Transform, float4(InVector4[index].xyz, IsDirection ? 0 : 1)).xyz;
+	OutVector4[index].w = InVector4[index].w;
+}

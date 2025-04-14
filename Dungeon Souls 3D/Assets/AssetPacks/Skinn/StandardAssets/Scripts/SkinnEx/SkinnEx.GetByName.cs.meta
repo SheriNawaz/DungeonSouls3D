@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: a60a9499427bd02468d9180af16ea065
+timeCreated: 1484689256
+licenseType: Store
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Scripts/SkinnEx/SkinnEx.GetByName.cs
+  uploadId: 315444

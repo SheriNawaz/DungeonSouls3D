@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 4d714fa769d8a5d48a9f270dc1936ff5
+timeCreated: 1498732889
+licenseType: Store
+ComputeShaderImporter:
+  currentAPIMask: 196608
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/ComputeShaders/MaskFilter.compute
+  uploadId: 315444

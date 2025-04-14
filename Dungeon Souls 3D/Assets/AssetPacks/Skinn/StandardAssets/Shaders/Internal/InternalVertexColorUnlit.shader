@@ -1,0 +1,55 @@
+Shader "Hidden/Skinn/VertexColor/Unlit"
+{
+	Properties
+	{
+	}
+
+	SubShader
+	{
+		Tags
+	{
+			"RenderType" = "Opaque"
+		}
+		Pass
+	{
+			ZTest On
+
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			#include "UnityCG.cginc"
+			#pragma multi_compile_fog
+			#pragma only_renderers d3d9 d3d11 glcore gles 
+			#pragma target 3.0
+			struct VertexInput {
+				float4 vertex : POSITION;
+				float3 normal : NORMAL;
+				float4 vertexColor : COLOR;
+			};
+			struct VertexOutput {
+				float4 pos : SV_POSITION;
+				float4 posWorld : TEXCOORD0;
+				float3 normalDir : TEXCOORD1;
+				float4 vertexColor : COLOR;
+			};
+			VertexOutput vert(VertexInput v) {
+				VertexOutput o = (VertexOutput)0;
+				o.vertexColor = v.vertexColor;
+				o.normalDir = UnityObjectToWorldNormal(v.normal);
+				o.posWorld = mul(unity_ObjectToWorld, v.vertex);
+				o.pos = UnityObjectToClipPos(v.vertex);
+				return o;
+			}
+			float4 frag(VertexOutput i) : COLOR 
+			{
+				i.normalDir = normalize(i.normalDir);
+				float3 emissive = (i.vertexColor.rgb);
+				fixed4 finalRGBA = fixed4(emissive,1);
+				return finalRGBA;
+			}
+			ENDCG
+		}
+
+	}
+		FallBack "Diffuse"
+}

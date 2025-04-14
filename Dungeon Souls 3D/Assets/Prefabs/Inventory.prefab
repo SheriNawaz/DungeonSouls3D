@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2948818324764144140
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3484407387687639747}
+  - component: {fileID: 1841329524510313629}
+  m_Layer: 0
+  m_Name: Inventory
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3484407387687639747
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2948818324764144140}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1841329524510313629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2948818324764144140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4fdcc902f7469f8459225aa46ab23ed8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemPool:
+  - {fileID: -4082040741699217177, guid: 10f06e6c1e127614fbeabc2533bac486, type: 3}
+  - {fileID: 5648742298189656231, guid: c58e18c3e7101a149bce999a331d2c77, type: 3}
+  - {fileID: 5167147842770470377, guid: 2a0b9f1f18d25e34489cf367b13a2bae, type: 3}
+  - {fileID: 1073502444224556581, guid: 0b8b61c4ee4cdb944ae88edadf5a3df0, type: 3}
+  - {fileID: -5552403713813819322, guid: 3f97899f7c7d4c34bb15e3749d0f061d, type: 3}
+  - {fileID: 3203837298092622531, guid: 66ce283ec060da34e85aab983e04674d, type: 3}
+  - {fileID: -7575196234466378003, guid: e3a57f664f8068a4aadd6f5991fce783, type: 3}
+  itemView: {fileID: 0}
+  weaponView: {fileID: 0}
+  icon: {fileID: 130299726319995335, guid: 0aa9d5bdd85c4dc4d9f2fb100a484c06, type: 3}
+  weaponSlot: {fileID: 0}

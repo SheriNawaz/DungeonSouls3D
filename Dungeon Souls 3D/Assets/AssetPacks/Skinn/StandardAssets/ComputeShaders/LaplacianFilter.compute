@@ -1,0 +1,72 @@
+﻿#pragma kernel Vector3LaplacianPass
+#pragma kernel InflationPass
+#pragma kernel UniqueIndicesPass
+
+#define SingleThreadGroupSize 1024
+
+int VertexCount;
+int AdjacentCount;
+
+float Inflation;
+bool DeltaPass;
+
+StructuredBuffer<int> Adjacency;
+StructuredBuffer<int> Duplicates;
+StructuredBuffer<float3> InVectors;
+
+RWStructuredBuffer<float3> OutVectors;
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void Vector3LaplacianPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float x = 0, y = 0, z = 0;
+	int i = 0, count = 0;
+	for (i; i < AdjacentCount; i++)
+	{
+		int sourceIndex = ix * AdjacentCount + i;
+		int weightIndex = Adjacency[sourceIndex];
+		if (sourceIndex < 0 || weightIndex < 0) continue;
+		x += OutVectors[weightIndex].x - OutVectors[ix].x;
+		y += OutVectors[weightIndex].y - OutVectors[ix].y;
+		z += OutVectors[weightIndex].z - OutVectors[ix].z;
+		count++;
+	}
+
+	if (count < 1) return;
+	OutVectors[ix].x = OutVectors[ix].x + x / count;
+	OutVectors[ix].y = OutVectors[ix].y + y / count;
+	OutVectors[ix].z = OutVectors[ix].z + z / count;
+}
+
+float3 clampMagnitude(float3 position, float max)
+{
+	float magnitude = distance(float3(0, 0, 0), position);
+	if (magnitude > max) return normalize(position) * (max);
+	return position;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void InflationPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+
+	float inflate = abs(Inflation);
+	float3 clampedValue = Inflation == 0 ? InVectors[ix] - OutVectors[ix] : clampMagnitude(InVectors[ix] - OutVectors[ix], inflate);
+	float3 value = DeltaPass ? float3(0, 0, 0) : InVectors[ix];
+	if(Inflation < 0.0) value -= clampedValue;
+	else value  += clampedValue;
+
+	OutVectors[ix] = value;
+}
+
+[numthreads(SingleThreadGroupSize, 1, 1)]
+void UniqueIndicesPass(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int ix = SingleThreadGroupSize * groupID.x + groupThreadID.x;
+	if (ix >= VertexCount) return;
+	if (Duplicates[ix] != ix) OutVectors[ix] = OutVectors[Duplicates[ix]];
+}

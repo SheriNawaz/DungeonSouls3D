@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 2273c0738e1fc654a82db8884f44d651
+timeCreated: 1514410965
+licenseType: Store
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _BumpMap: {fileID: 2800000, guid: 4a5d1806843507e49b89fe498891a69e, type: 3}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Shaders/SimpleVertexColorTexture.shader
+  uploadId: 315444

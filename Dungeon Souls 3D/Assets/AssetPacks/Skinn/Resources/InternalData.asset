@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2ab94672e4a6244caaf039c156a8102, type: 3}
+  m_Name: InternalData
+  m_EditorClassIdentifier: 
+  contextSettings:
+    autoOptimzeBones: 1
+  colors:
+    smoothOnColor: {r: 1, g: 1, b: 1, a: 1}
+    smoothOffColor: {r: 0, g: 0, b: 0, a: 1}
+    latticeColor: {r: 0.10849059, g: 0.9287979, b: 1, a: 1}
+    rangeColor: {r: 0, g: 1, b: 0.1, a: 0.103}
+  adjacentIndices: {fileID: 7200000, guid: 588442e060ab701499266b6b66e97937, type: 3}
+  radialIndices: {fileID: 7200000, guid: d87a9217f5607424c84460d87450843d, type: 3}
+  combineDeltas: {fileID: 7200000, guid: ec673b4654c88b641a278a725ce80a87, type: 3}
+  deltaProjector: {fileID: 7200000, guid: d771972cb33dc964393eca09f2105ea8, type: 3}
+  laplacianFilter: {fileID: 7200000, guid: 3a32d698d1507c94aa9332435a17e7e8, type: 3}
+  linearSkinning: {fileID: 7200000, guid: 13c2bd18ff854a546ae8fdcdc7d679d3, type: 3}
+  linearTransform: {fileID: 7200000, guid: a93b215bef6ea614caf39f8c081adb43, type: 3}
+  maskFilter: {fileID: 7200000, guid: 4d714fa769d8a5d48a9f270dc1936ff5, type: 3}
+  weightMapping: {fileID: 7200000, guid: 1d64fa01720439341a5b6e90e0f4448f, type: 3}
+  texturePadding: {fileID: 7200000, guid: 908bde1666cbcf841808a84e264536ce, type: 3}
+  lightMapAtlas: {fileID: 4800000, guid: 848606e7937158743946f358abce4176, type: 3}
+  debugNormals: {fileID: 4800000, guid: 415b06bf515672843845fa912142bd6a, type: 3}
+  debugNull: {fileID: 4800000, guid: 848606e7937158743946f358abce4176, type: 3}
+  debugVertexColor: {fileID: 4800000, guid: 65d65a2799d2e4e41ab66772defeb562, type: 3}
+  debugVertexOverlay: {fileID: 4800000, guid: c16d2cbb09b3e3442aeba4c6dc32a4aa, type: 3}
+  vetexImporterSettings:
+    compareSubMesh: 0
+    compareUV: 0
+    compareNormal: 1
+    compareTangent: 1
+  unlitMaterials:
+  - {fileID: 2100000, guid: ba2d72793236843448b007cb4fac36cb, type: 2}
+  - {fileID: 2100000, guid: 14125633e14881d4a88a446f3fd85124, type: 2}
+  standardMaterials:
+  - {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  transforms: []
+  blendshapeFilter:
+    name: 
+    assetID: 
+    textFilter: {fileID: 0}
+    elements: []
+    enabledCount: 0

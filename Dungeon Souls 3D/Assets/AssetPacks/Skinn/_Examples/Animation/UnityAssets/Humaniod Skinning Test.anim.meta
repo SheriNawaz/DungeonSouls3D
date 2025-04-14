@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 1845eb7d5d74bc248a7c27d73403288a
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 7400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/_Examples/Animation/UnityAssets/Humaniod Skinning Test.anim
+  uploadId: 315444

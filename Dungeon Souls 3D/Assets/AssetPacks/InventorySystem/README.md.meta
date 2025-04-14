@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 396c428dec487ec46a3304edca50afd8
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Extensible Inventory System
+  packageVersion: 1.4
+  assetPath: Assets/InventorySystem/README.md
+  uploadId: 741406

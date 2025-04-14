@@ -7,6 +7,13 @@ TagManager:
   - Ground
   - Enemy
   - Sword
+  - EnemySword
+  - LookAt
+  - Chest
+  - WeaponSlot
+  - Current
+  - Key
+  - Map
   layers:
   - Default
   - TransparentFX
@@ -16,9 +23,9 @@ TagManager:
   - UI
   - Ground
   - Wall
-  - 
-  - 
-  - 
+  - Player
+  - Obstacle
+  - Enemy
   - 
   - 
   - 

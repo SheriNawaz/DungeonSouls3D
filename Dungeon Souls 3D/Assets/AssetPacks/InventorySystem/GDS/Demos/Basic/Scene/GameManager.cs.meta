@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: c5bb908c55ceb2043acc18e6f6a23244
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Extensible Inventory System
+  packageVersion: 1.4
+  assetPath: Assets/InventorySystem/GDS/Demos/Basic/Scene/GameManager.cs
+  uploadId: 741406

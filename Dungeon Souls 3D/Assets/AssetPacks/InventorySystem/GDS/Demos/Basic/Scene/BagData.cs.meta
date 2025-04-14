@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 4115aba83d0641a489313933f04ea396
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Extensible Inventory System
+  packageVersion: 1.4
+  assetPath: Assets/InventorySystem/GDS/Demos/Basic/Scene/BagData.cs
+  uploadId: 741406

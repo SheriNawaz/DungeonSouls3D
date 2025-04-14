@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 908bde1666cbcf841808a84e264536ce
+timeCreated: 1498732889
+licenseType: Store
+ComputeShaderImporter:
+  currentAPIMask: 196608
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/ComputeShaders/TexturePadding.compute
+  uploadId: 315444

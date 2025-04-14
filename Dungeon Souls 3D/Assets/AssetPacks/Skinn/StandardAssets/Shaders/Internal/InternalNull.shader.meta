@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 848606e7937158743946f358abce4176
+timeCreated: 1514419270
+licenseType: Store
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 147853
+  packageName: Skinn Vertex Mapper (Free Edition)
+  packageVersion: 1.0
+  assetPath: Assets/Skinn/StandardAssets/Shaders/Internal/InternalNull.shader
+  uploadId: 315444
