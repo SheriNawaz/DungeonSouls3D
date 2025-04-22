@@ -4,7 +4,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyPathfinding : MonoBehaviour
-{
+{ 
+	//A star algorithm for enemy pathfinding 
 	[Header("Movement Settings")]
 	[SerializeField] private float moveSpeed = 2f;
 	[SerializeField] private float rotationSpeed = 5f;
@@ -21,8 +22,13 @@ public class EnemyPathfinding : MonoBehaviour
 	[Header("Attack Settings")]
 	[SerializeField] private float attackRadius = 2.0f;
 
+	[Header("Pathfinding Settings")]
+	[SerializeField] private bool strictlyAvoidOccupiedCells = true; // If true, will never choose an occupied cell
+	[SerializeField] private float occupiedCellPenalty = 10f; // Higher penalty makes occupied cells less attractive
+
 	[Header("Debug")]
 	[SerializeField] private bool showDetection = true;
+	[SerializeField] private bool showPath = false;
 
 	// Attack state
 	[HideInInspector] public bool canAttack = false;
@@ -50,27 +56,16 @@ public class EnemyPathfinding : MonoBehaviour
 
 	public Animator animator;
 
-	private void Start()
+	public void Start()
 	{
-		// Find the player
 		playerTransform = GameObject.FindGameObjectWithTag("Player")?.transform;
-		if (playerTransform == null)
-		{
-			Debug.LogError("Player not found! Make sure the player has the 'Player' tag.");
-		}
-
-		// Get animator component
 		animator = GetComponent<Animator>();
-		if (animator == null)
-		{
-			Debug.LogWarning("Animator component not found on enemy!");
-		}
-
-		// Find initial room
 		UpdateCurrentRoom();
 
-		// Start pathfinding coroutine
-		pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
+		if (currentRoom != null)
+		{
+			pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
+		}
 	}
 
 	private void Update()
@@ -81,17 +76,13 @@ public class EnemyPathfinding : MonoBehaviour
 			return;
 		}
 
-		// Check if player is visible
 		CheckPlayerVisibility();
 
-		// Check if player is within attack range
 		CheckAttackRange();
 
-		// Move along path if we have one and not in attack range
 		if (isPathValid && path.Count > 0 && !canAttack)
 		{
 			MoveAlongPath();
-			// Set animator speed parameter to 1 when moving
 			if (animator != null)
 			{
 				animator.SetFloat("speed", 1f);
@@ -99,7 +90,6 @@ public class EnemyPathfinding : MonoBehaviour
 		}
 		else
 		{
-			// Set animator speed parameter to 0 when stationary
 			if (animator != null)
 			{
 				animator.SetFloat("speed", 0f);
@@ -109,6 +99,21 @@ public class EnemyPathfinding : MonoBehaviour
 			{
 				// Handle timeout for pathfinding
 				pathfindingTimeout -= Time.deltaTime;
+			}
+		}
+
+		// Check if the current path contains occupied cells and recalculate if needed
+		if (isPathValid && path.Count > 0 && currentPathIndex < path.Count)
+		{
+			// If the next cell in the path is occupied, recalculate path
+			Cell nextCell = path[currentPathIndex];
+			if (nextCell.isOccupied && strictlyAvoidOccupiedCells)
+			{
+				if (pathfindingCoroutine != null)
+				{
+					StopCoroutine(pathfindingCoroutine);
+					pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
+				}
 			}
 		}
 	}
@@ -124,7 +129,7 @@ public class EnemyPathfinding : MonoBehaviour
 		{
 			canAttack = true;
 
-			// Make sure we're facing the player when in attack mode
+			// Face player
 			Vector3 directionToPlayer = (playerTransform.position - transform.position).normalized;
 			if (directionToPlayer != Vector3.zero)
 			{
@@ -145,6 +150,12 @@ public class EnemyPathfinding : MonoBehaviour
 
 		foreach (ProceduralRoom room in rooms)
 		{
+			// Make sure the room has a grid before checking
+			if (room.GetComponent<RoomGridSystem>() == null || !room.GetComponent<RoomGridSystem>().HasGrid())
+			{
+				continue;
+			}
+
 			if (IsPositionInRoom(transform.position, room))
 			{
 				currentRoom = room;
@@ -155,6 +166,12 @@ public class EnemyPathfinding : MonoBehaviour
 
 	private bool IsPositionInRoom(Vector3 position, ProceduralRoom room)
 	{
+		// check if room has a valid grid
+		if (!room.GetComponent<RoomGridSystem>().HasGrid())
+		{
+			return false;
+		}
+
 		// Convert world position to grid position
 		Vector2Int gridPos = room.WorldToGrid(position);
 
@@ -181,7 +198,7 @@ public class EnemyPathfinding : MonoBehaviour
 				RaycastHit hit;
 				if (Physics.Raycast(transform.position + Vector3.up, directionToPlayer.normalized, out hit, detectionRange, obstacleLayer | playerLayer))
 				{
-					// If we hit the player
+					// If raycast hits player
 					if (((1 << hit.collider.gameObject.layer) & playerLayer) != 0)
 					{
 						canSeePlayer = true;
@@ -191,7 +208,10 @@ public class EnemyPathfinding : MonoBehaviour
 						{
 							isChasing = true;
 							// Recalculate path immediately when player is spotted
-							StopCoroutine(pathfindingCoroutine);
+							if (pathfindingCoroutine != null)
+							{
+								StopCoroutine(pathfindingCoroutine);
+							}
 							pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
 						}
 						return;
@@ -200,7 +220,6 @@ public class EnemyPathfinding : MonoBehaviour
 			}
 		}
 
-		// If we got here, we can't see the player
 		canSeePlayer = false;
 	}
 
@@ -215,7 +234,7 @@ public class EnemyPathfinding : MonoBehaviour
 
 			Vector3 targetPosition;
 
-			if (isChasing)
+			if (isChasing && playerTransform != null)
 			{
 				targetPosition = canSeePlayer ? playerTransform.position : lastKnownPlayerPosition;
 
@@ -237,7 +256,7 @@ public class EnemyPathfinding : MonoBehaviour
 
 	private void CalculatePath(Vector3 startPos, Vector3 targetPos)
 	{
-		if (pathfindingTimeout > 0)
+		if (pathfindingTimeout > 0 || currentRoom == null)
 		{
 			return;
 		}
@@ -255,7 +274,7 @@ public class EnemyPathfinding : MonoBehaviour
 			return;
 		}
 
-		if (!targetCell.isWalkable || targetCell.isOccupied)
+		if (!targetCell.isWalkable || (strictlyAvoidOccupiedCells && targetCell.isOccupied))
 		{
 			Cell alternativeTarget = FindNearestWalkableCell(targetCell);
 			if (alternativeTarget != null)
@@ -304,9 +323,32 @@ public class EnemyPathfinding : MonoBehaviour
 					if (Mathf.Abs(x) == radius || Mathf.Abs(z) == radius)
 					{
 						Cell cell = currentRoom.GetCell(cellPos.x + x, cellPos.y + z);
-						if (cell != null && cell.isWalkable && !cell.isOccupied)
+						if (cell != null && cell.isWalkable && (!strictlyAvoidOccupiedCells || !cell.isOccupied))
 						{
 							return cell;
+						}
+					}
+				}
+			}
+		}
+
+		// If we can't find a non-occupied cell and we're strictly avoiding them,
+		// but we need a cell anyway, try again without the occupied restriction
+		if (strictlyAvoidOccupiedCells)
+		{
+			for (int radius = 1; radius <= maxRadius; radius++)
+			{
+				for (int x = -radius; x <= radius; x++)
+				{
+					for (int z = -radius; z <= radius; z++)
+					{
+						if (Mathf.Abs(x) == radius || Mathf.Abs(z) == radius)
+						{
+							Cell cell = currentRoom.GetCell(cellPos.x + x, cellPos.y + z);
+							if (cell != null && cell.isWalkable)
+							{
+								return cell;
+							}
 						}
 					}
 				}
@@ -351,12 +393,100 @@ public class EnemyPathfinding : MonoBehaviour
 			List<Cell> neighbors = GetNeighbors(current);
 			foreach (Cell neighbor in neighbors)
 			{
-				if (closedSet.Contains(neighbor) || !neighbor.isWalkable || neighbor.isOccupied)
+				if (closedSet.Contains(neighbor) || !neighbor.isWalkable ||
+					(strictlyAvoidOccupiedCells && neighbor.isOccupied))
 				{
 					continue;
 				}
 
-				float tentativeGScore = gScore[current] + Vector3.Distance(current.worldPosition, neighbor.worldPosition);
+				// Calculate movement cost to this neighbor
+				float movementCost = Vector3.Distance(current.worldPosition, neighbor.worldPosition);
+
+				// Apply penalty for occupied cells if we're not strictly avoiding them
+				if (!strictlyAvoidOccupiedCells && neighbor.isOccupied)
+				{
+					movementCost += occupiedCellPenalty;
+				}
+
+				float tentativeGScore = gScore[current] + movementCost;
+
+				if (!openSet.Contains(neighbor))
+				{
+					openSet.Add(neighbor);
+				}
+				else if (gScore.ContainsKey(neighbor) && tentativeGScore >= gScore[neighbor])
+				{
+					continue;
+				}
+
+				cameFrom[neighbor] = current;
+				gScore[neighbor] = tentativeGScore;
+				fScore[neighbor] = gScore[neighbor] + HeuristicCost(neighbor, targetCell);
+			}
+		}
+
+		// If we've strictly avoided occupied cells but couldn't find a path,
+		// retry with less strict constraints if this is our last attempt
+		if (strictlyAvoidOccupiedCells && pathfindingAttempts >= maxPathfindingAttempts - 1)
+		{
+			return FindPathWithOccupiedCells(startCell, targetCell);
+		}
+
+		return null;
+	}
+
+	private List<Cell> FindPathWithOccupiedCells(Cell startCell, Cell targetCell)
+	{
+		// This is a backup pathfinding method that allows traversal through occupied cells
+		// when necessary, applying penalties to make them less preferable
+		List<Cell> openSet = new List<Cell>();
+		HashSet<Cell> closedSet = new HashSet<Cell>();
+		Dictionary<Cell, Cell> cameFrom = new Dictionary<Cell, Cell>();
+		Dictionary<Cell, float> gScore = new Dictionary<Cell, float>();
+		Dictionary<Cell, float> fScore = new Dictionary<Cell, float>();
+
+		gScore[startCell] = 0;
+		fScore[startCell] = HeuristicCost(startCell, targetCell);
+		openSet.Add(startCell);
+
+		while (openSet.Count > 0)
+		{
+			Cell current = openSet[0];
+			for (int i = 1; i < openSet.Count; i++)
+			{
+				if (fScore.ContainsKey(openSet[i]) && fScore[openSet[i]] < fScore[current])
+				{
+					current = openSet[i];
+				}
+			}
+
+			if (current == targetCell)
+			{
+				return ReconstructPath(cameFrom, current);
+			}
+
+			openSet.Remove(current);
+			closedSet.Add(current);
+
+			// Check all neighbors, including occupied ones
+			List<Cell> allNeighbors = GetAllNeighbors(current);
+			foreach (Cell neighbor in allNeighbors)
+			{
+				if (closedSet.Contains(neighbor) || !neighbor.isWalkable)
+				{
+					continue;
+				}
+
+				// Calculate movement cost to this neighbor
+				float movementCost = Vector3.Distance(current.worldPosition, neighbor.worldPosition);
+
+				// Apply high penalty for occupied cells
+				if (neighbor.isOccupied)
+				{
+					movementCost += occupiedCellPenalty * 2; // Double penalty in backup pathfinding
+				}
+
+				float tentativeGScore = gScore[current] + movementCost;
 
 				if (!openSet.Contains(neighbor))
 				{
@@ -379,6 +509,8 @@ public class EnemyPathfinding : MonoBehaviour
 	private List<Cell> GetNeighbors(Cell cell)
 	{
 		List<Cell> neighbors = new List<Cell>();
+		if (currentRoom == null) return neighbors;
+
 		Vector2Int cellPos = currentRoom.WorldToGrid(cell.worldPosition);
 
 		for (int x = -1; x <= 1; x++)
@@ -389,7 +521,37 @@ public class EnemyPathfinding : MonoBehaviour
 
 				Cell neighbor = currentRoom.GetCell(cellPos.x + x, cellPos.y + z);
 
-				if (neighbor != null && neighbor.isWalkable && !neighbor.isOccupied)
+				if (neighbor != null && neighbor.isWalkable &&
+					(!strictlyAvoidOccupiedCells || !neighbor.isOccupied))
+				{
+					if (IsCellClearOfEnemies(neighbor))
+					{
+						neighbors.Add(neighbor);
+					}
+				}
+			}
+		}
+
+		return neighbors;
+	}
+
+	private List<Cell> GetAllNeighbors(Cell cell)
+	{
+		// This version includes occupied cells for the backup pathfinding
+		List<Cell> neighbors = new List<Cell>();
+		if (currentRoom == null) return neighbors;
+
+		Vector2Int cellPos = currentRoom.WorldToGrid(cell.worldPosition);
+
+		for (int x = -1; x <= 1; x++)
+		{
+			for (int z = -1; z <= 1; z++)
+			{
+				if (x == 0 && z == 0) continue;
+
+				Cell neighbor = currentRoom.GetCell(cellPos.x + x, cellPos.y + z);
+
+				if (neighbor != null && neighbor.isWalkable)
 				{
 					if (IsCellClearOfEnemies(neighbor))
 					{
@@ -421,6 +583,8 @@ public class EnemyPathfinding : MonoBehaviour
 
 	private float HeuristicCost(Cell a, Cell b)
 	{
+		if (currentRoom == null) return float.MaxValue;
+
 		Vector2Int posA = currentRoom.WorldToGrid(a.worldPosition);
 		Vector2Int posB = currentRoom.WorldToGrid(b.worldPosition);
 		return Mathf.Abs(posA.x - posB.x) + Mathf.Abs(posA.y - posB.y);
@@ -454,7 +618,8 @@ public class EnemyPathfinding : MonoBehaviour
 
 			for (int i = furthest + 1; i < originalPath.Count; i++)
 			{
-				if (HasClearLineOfSight(originalPath[current], originalPath[i]))
+				if (HasClearLineOfSight(originalPath[current], originalPath[i]) &&
+					IsLineClearOfOccupiedCells(originalPath[current], originalPath[i]))
 				{
 					furthest = i;
 				}
@@ -481,6 +646,70 @@ public class EnemyPathfinding : MonoBehaviour
 		return true;
 	}
 
+	private bool IsLineClearOfOccupiedCells(Cell from, Cell to)
+	{
+		if (!strictlyAvoidOccupiedCells) return true;
+
+		// Get all cells along the line
+		List<Cell> cellsOnLine = GetCellsOnLine(from, to);
+
+		// Check if any are occupied
+		foreach (Cell cell in cellsOnLine)
+		{
+			if (cell.isOccupied)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private List<Cell> GetCellsOnLine(Cell from, Cell to)
+	{
+		List<Cell> cells = new List<Cell>();
+
+		Vector2Int fromGrid = currentRoom.WorldToGrid(from.worldPosition);
+		Vector2Int toGrid = currentRoom.WorldToGrid(to.worldPosition);
+
+		// Use Bresenham's line algorithm to find grid cells along the line
+		int x0 = fromGrid.x;
+		int y0 = fromGrid.y;
+		int x1 = toGrid.x;
+		int y1 = toGrid.y;
+
+		int dx = Mathf.Abs(x1 - x0);
+		int dy = Mathf.Abs(y1 - y0);
+		int sx = x0 < x1 ? 1 : -1;
+		int sy = y0 < y1 ? 1 : -1;
+		int err = dx - dy;
+
+		while (true)
+		{
+			Cell cell = currentRoom.GetCell(x0, y0);
+			if (cell != null)
+			{
+				cells.Add(cell);
+			}
+
+			if (x0 == x1 && y0 == y1) break;
+
+			int e2 = 2 * err;
+			if (e2 > -dy)
+			{
+				err -= dy;
+				x0 += sx;
+			}
+			if (e2 < dx)
+			{
+				err += dx;
+				y0 += sy;
+			}
+		}
+
+		return cells;
+	}
+
 	private void MoveAlongPath()
 	{
 		if (path.Count == 0 || currentPathIndex >= path.Count)
@@ -499,7 +728,7 @@ public class EnemyPathfinding : MonoBehaviour
 
 			if (currentPathIndex >= path.Count)
 			{
-				if (isChasing && canSeePlayer)
+				if (isChasing && canSeePlayer && pathfindingCoroutine != null)
 				{
 					StopCoroutine(pathfindingCoroutine);
 					pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
@@ -507,12 +736,14 @@ public class EnemyPathfinding : MonoBehaviour
 				return;
 			}
 		}
+
+		// Check if the next cell is now occupied
 		if (currentPathIndex < path.Count)
 		{
 			Cell nextCell = path[currentPathIndex];
-			if (nextCell.isOccupied)
+			if (nextCell.isOccupied && strictlyAvoidOccupiedCells)
 			{
-				if (isChasing)
+				if (pathfindingCoroutine != null)
 				{
 					StopCoroutine(pathfindingCoroutine);
 					pathfindingCoroutine = StartCoroutine(PathfindingRoutine());
@@ -533,15 +764,30 @@ public class EnemyPathfinding : MonoBehaviour
 
 	private void OnDrawGizmosSelected()
 	{
-		// Display attack radius
 		Gizmos.color = Color.red;
 		Gizmos.DrawWireSphere(transform.position, attackRadius);
 
-		// Display detection range
 		if (showDetection)
 		{
 			Gizmos.color = Color.yellow;
 			Gizmos.DrawWireSphere(transform.position, detectionRange);
+		}
+
+		if (showPath && path != null && path.Count > 0)
+		{
+			Gizmos.color = Color.green;
+			for (int i = 0; i < path.Count - 1; i++)
+			{
+				Gizmos.DrawLine(path[i].worldPosition + Vector3.up * 0.1f,
+								path[i + 1].worldPosition + Vector3.up * 0.1f);
+			}
+
+			// Highlight current target point
+			if (currentPathIndex < path.Count)
+			{
+				Gizmos.color = Color.blue;
+				Gizmos.DrawSphere(path[currentPathIndex].worldPosition + Vector3.up * 0.1f, 0.2f);
+			}
 		}
 	}
 }

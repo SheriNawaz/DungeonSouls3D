@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEditor;
 
+//Allow for Dungeon Editing in inspector
+
 #if UNITY_EDITOR
 [CustomEditor(typeof(DungeonGenerator))]
 public class DungeonGeneratorEditor : Editor

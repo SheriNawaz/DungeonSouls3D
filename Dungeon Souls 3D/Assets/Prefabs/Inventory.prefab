@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3484407387687639747}
   - component: {fileID: 1841329524510313629}
+  - component: {fileID: 2320468308182171823}
   m_Layer: 0
   m_Name: Inventory
   m_TagString: Untagged
@@ -49,10 +50,42 @@ MonoBehaviour:
   - {fileID: 5648742298189656231, guid: c58e18c3e7101a149bce999a331d2c77, type: 3}
   - {fileID: 5167147842770470377, guid: 2a0b9f1f18d25e34489cf367b13a2bae, type: 3}
   - {fileID: 1073502444224556581, guid: 0b8b61c4ee4cdb944ae88edadf5a3df0, type: 3}
-  - {fileID: -5552403713813819322, guid: 3f97899f7c7d4c34bb15e3749d0f061d, type: 3}
   - {fileID: 3203837298092622531, guid: 66ce283ec060da34e85aab983e04674d, type: 3}
   - {fileID: -7575196234466378003, guid: e3a57f664f8068a4aadd6f5991fce783, type: 3}
+  - {fileID: 1843337148833229206, guid: 5652b0c16bef57d4b87cf8f7a5c5deb8, type: 3}
+  - {fileID: 1037860799875980788, guid: 5685369bd56ee354d80377301e80ea08, type: 3}
+  - {fileID: 3956270479121456014, guid: 49e1bd1fe2cdfe143a51903116398d97, type: 3}
+  - {fileID: 7995382776672837832, guid: 95850cb421fdf04488aa544241def2fc, type: 3}
+  - {fileID: 2641007475496385877, guid: 3db90e28eacf4ff4a9b2a4f2a3061f5d, type: 3}
+  - {fileID: 6716772002503556510, guid: 81486cd28e5f51d41ad068fa0053150a, type: 3}
+  - {fileID: 4642088311096442571, guid: fff735353a3d69642a2caaa87e0edb46, type: 3}
+  - {fileID: 6648190416532176462, guid: 8b24f5dcc5cef1c47babe67e27496d2d, type: 3}
+  - {fileID: 304292343295892662, guid: 3972b94bbf51120458caf1fa7d23d07d, type: 3}
+  - {fileID: 6508197026460053852, guid: 15e6c474420ff0a488b33ef0bf9243c5, type: 3}
+  - {fileID: 6368435203982361354, guid: 3cc9fec65fd932a47aca911960157583, type: 3}
+  - {fileID: 8136874954914548800, guid: 4eccc3b8a6fb533428c49330d5c80bf6, type: 3}
+  - {fileID: 5294682722244197189, guid: 34eefc5b01ea5394080027512bc91e5a, type: 3}
+  - {fileID: -5552403713813819322, guid: 3f97899f7c7d4c34bb15e3749d0f061d, type: 3}
   itemView: {fileID: 0}
+  shopInvView: {fileID: 0}
   weaponView: {fileID: 0}
+  sellView: {fileID: 0}
   icon: {fileID: 130299726319995335, guid: 0aa9d5bdd85c4dc4d9f2fb100a484c06, type: 3}
+  shopInvIcon: {fileID: 130299726319995335, guid: d84498d981a9fbd43856d1c5ea5774c2, type: 3}
+  sellIcon: {fileID: 5303611358066621363, guid: 228b34f94e91a534ba91ddef9cba0f07, type: 3}
   weaponSlot: {fileID: 0}
+  charmSlot: {fileID: 0}
+  shopIcon: {fileID: 5303611358066621363, guid: 189897a8e76e716439e5d143d12df716, type: 3}
+  charmView: {fileID: 0}
+--- !u!114 &2320468308182171823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2948818324764144140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78a30510578e3c7418344fbf75a85cca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

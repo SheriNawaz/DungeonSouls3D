@@ -12,7 +12,8 @@ public enum RoomType
 	Map,
 	Key,
 	SpawnPoint,
-	Library
+	Library,
+	BossRoom
 }
 
 [System.Serializable]
@@ -34,8 +35,8 @@ public class WallPropSet
 	[Range(0f, 1f)]
 	public float wallPropDensity = 0.2f;
 	[Range(0f, 1f)]
-	public float heightVariation = 0.2f; // Controls vertical position variation
-	public float wallOffset = 0.05f; // Distance from the wall
+	public float heightVariation = 0.2f;
+	public float wallOffset = 0.05f; 
 }
 
 [System.Serializable]
@@ -45,7 +46,7 @@ public class RoofPropSet
 	public GameObject[] roofPropPrefabs;
 	[Range(0f, 1f)]
 	public float roofPropDensity = 0.1f;
-	public float heightOffset = 0.1f; // Distance below ceiling
+	public float heightOffset = 0.1f; 
 	public bool allowChandeliers = true;
 	public GameObject chandelierPrefab;
 }
@@ -87,6 +88,7 @@ public class ProceduralRoom : MonoBehaviour
 	[SerializeField] private RoomPropSet keyRoomProps;
 	[SerializeField] private RoomPropSet spawnPointRoomProps;
 	[SerializeField] private RoomPropSet libraryRoomProps;
+	[SerializeField] private RoomPropSet bossRoomProps;
 
 	[Header("Roof Props")]
 	[SerializeField] private RoofPropSet normalRoofProps;
@@ -97,13 +99,14 @@ public class ProceduralRoom : MonoBehaviour
 	[SerializeField] private RoofPropSet keyRoofProps;
 	[SerializeField] private RoofPropSet spawnPointRoofProps;
 	[SerializeField] private RoofPropSet libraryRoofProps;
+	[SerializeField] private RoofPropSet bossRoofProps;
 
 	[Header("Wall Props")]
 	[SerializeField] private WallPropSet wallProps;
 	[SerializeField] private bool enableWallProps = true;
 	[Range(0f, 1f)]
-	[SerializeField] private float wallPropChance = 0.3f; // Chance for a wall to have props
-	[SerializeField] private float minWallPropDistance = 1.5f; // Minimum distance between wall props
+	[SerializeField] private float wallPropChance = 0.3f; 
+	[SerializeField] private float minWallPropDistance = 1.5f; 
 
 	[Header("Roof Settings")]
 	[SerializeField] private GameObject[] roofPrefabs = new GameObject[3];
@@ -111,7 +114,7 @@ public class ProceduralRoom : MonoBehaviour
 	[SerializeField] private float roofHeight = 4.0f;
 	[SerializeField] private bool enableRoof = true;
 	[SerializeField] private bool enableRoofProps = true;
-	[SerializeField] private float minRoofPropDistance = 2.0f; // Minimum distance between roof props
+	[SerializeField] private float minRoofPropDistance = 2.0f; 
 
 
 	private float lastWidth;
@@ -129,7 +132,6 @@ public class ProceduralRoom : MonoBehaviour
 		roomOrigin = transform.position;
 		lastRoomType = roomType;
 
-		// Make sure we have the grid system component
 		if (gridSystem == null)
 		{
 			gridSystem = GetComponent<RoomGridSystem>();
@@ -185,6 +187,7 @@ public class ProceduralRoom : MonoBehaviour
 		{
 			PlaceRoofProps();
 		}
+		MarkOccupiedTiles();
 	}
 
 	private int SelectFloorTile()
@@ -209,6 +212,7 @@ public class ProceduralRoom : MonoBehaviour
 		return random.Next(0, 3);
 	}
 
+	//Floor and walls created in a way where if the room size is 3x3, 3x3 or tiles are placed but if its 3.5, 3x3 tiles are placed and stretched to fill area
 	private void CreateFloor()
 	{
 		Renderer renderer = floorPrefabs[0].GetComponent<Renderer>();
@@ -386,8 +390,6 @@ public class ProceduralRoom : MonoBehaviour
 	{
 		RoomPropSet currentPropSet = GetCurrentRoomPropSet();
 
-		
-
 		if ((currentPropSet.propPrefabs == null || currentPropSet.propPrefabs.Length == 0) &&
 			!(currentPropSet.forceCenterProp && currentPropSet.centerPropPrefab != null))
 		{
@@ -418,7 +420,7 @@ public class ProceduralRoom : MonoBehaviour
 			}
 			else
 			{
-				return; // No cells, no center prop needed, exit
+				return; // No cells, no center prop needed
 			}
 		}
 
@@ -441,12 +443,14 @@ public class ProceduralRoom : MonoBehaviour
 			// Create the center prop
 			GameObject centerProp = Instantiate(currentPropSet.centerPropPrefab, roomCenter, Quaternion.identity, propsParent);
 
-			// Remove cells near the center prop - use a smaller radius to ensure we still have cells for other props
+			// Mark this cell as occupied 
+			gridSystem.MarkCellAsOccupied(roomCenter);
+
+			// Remove cells near the center prop
 			float centerPropRadius = propSpacing * 1.5f;
 			gridSystem.RemoveNearbyCells(availableCells, roomCenter, centerPropRadius);
 		}
 
-		// Only place regular props if we have prop prefabs
 		if (currentPropSet.propPrefabs != null && currentPropSet.propPrefabs.Length > 0 && availableCells.Count > 0)
 		{
 			int propsToPlace = Mathf.Max(1, Mathf.FloorToInt(availableCells.Count * currentPropSet.propDensity));
@@ -460,7 +464,7 @@ public class ProceduralRoom : MonoBehaviour
 
 				int cellIndex = random.Next(0, availableCells.Count);
 				Cell selectedCell = availableCells[cellIndex];
-				availableCells.RemoveAt(cellIndex); // Remove the cell from options immediately
+				availableCells.RemoveAt(cellIndex); 
 
 				if (currentPropSet.propPrefabs.Length == 0)
 				{
@@ -475,6 +479,10 @@ public class ProceduralRoom : MonoBehaviour
 					Vector3 propPosition = selectedCell.worldPosition;
 					float randomRotation = (float)random.NextDouble() * 360f;
 					GameObject prop = Instantiate(propPrefab, propPosition, Quaternion.Euler(0, randomRotation, 0), propsParent);
+					prop.layer = 9;
+
+					// Mark this cell as occupied 
+					selectedCell.isOccupied = true;
 
 					// Mark nearby cells as unavailable
 					gridSystem.RemoveNearbyCells(availableCells, propPosition, propSpacing);
@@ -483,7 +491,7 @@ public class ProceduralRoom : MonoBehaviour
 		}
 	}
 
-	// New method for placing wall props
+
 	private void PlaceWallProps()
 	{
 		if (!enableWallProps || wallProps == null || wallProps.wallPropPrefabs == null || wallProps.wallPropPrefabs.Length == 0)
@@ -494,10 +502,8 @@ public class ProceduralRoom : MonoBehaviour
 		Transform wallPropsParent = new GameObject("WallProps").transform;
 		wallPropsParent.SetParent(transform);
 
-		// Get wall positions
 		List<WallSegment> wallSegments = GetWallSegments();
 
-		// Track all placed wall prop positions to maintain minimum distances
 		List<Vector3> placedWallPropPositions = new List<Vector3>();
 
 		foreach (WallSegment segment in wallSegments)
@@ -510,7 +516,6 @@ public class ProceduralRoom : MonoBehaviour
 
 			int propsToPlace = Mathf.Max(1, Mathf.FloorToInt(segment.length * wallProps.wallPropDensity));
 
-			// Maximum attempts to place props to avoid infinite loop
 			int maxAttempts = propsToPlace * 3;
 			int attempts = 0;
 
@@ -541,7 +546,7 @@ public class ProceduralRoom : MonoBehaviour
 
 				Vector3 propPosition = segment.start + segment.direction * randomPos;
 
-				// Position props higher on the wall (2-2.5 units from floor)
+				// Position props higher on the wall
 				propPosition.y += 2.2f + heightVar;
 
 				// Offset from wall slightly
@@ -560,7 +565,7 @@ public class ProceduralRoom : MonoBehaviour
 
 				if (tooCloseToOtherProp)
 				{
-					continue; // Skip this position and try again
+					continue; 
 				}
 
 				// Create the prop
@@ -591,7 +596,18 @@ public class ProceduralRoom : MonoBehaviour
 				{
 					Destroy(prop);
 					placedWallPropPositions.Remove(propPosition); // Remove from tracking
-					continue; // Try another placement
+					continue; 
+				}
+
+				// Mark the associated floor cell as occupied
+				Vector3 floorProjection = new Vector3(propPosition.x, roomOrigin.y, propPosition.z);
+
+				// Find the closest cell to this position and mark it
+				Vector2Int cellCoords = gridSystem.WorldToGrid(floorProjection);
+				Cell closestCell = gridSystem.GetCell(cellCoords.x, cellCoords.y);
+				if (closestCell != null)
+				{
+					closestCell.isOccupied = true;
 				}
 
 				// Successfully placed a prop
@@ -600,7 +616,6 @@ public class ProceduralRoom : MonoBehaviour
 		}
 	}
 
-	// Struct to represent a wall segment
 	private struct WallSegment
 	{
 		public Vector3 start;
@@ -621,7 +636,6 @@ public class ProceduralRoom : MonoBehaviour
 		}
 	}
 
-	// Method to get wall segments
 	private List<WallSegment> GetWallSegments()
 	{
 		List<WallSegment> segments = new List<WallSegment>();
@@ -678,6 +692,8 @@ public class ProceduralRoom : MonoBehaviour
 				return spawnPointRoomProps;
 			case RoomType.Library:
 				return libraryRoomProps;
+			case RoomType.BossRoom:
+				return bossRoomProps;
 			default:
 				return normalRoomProps;
 		}
@@ -703,6 +719,8 @@ public class ProceduralRoom : MonoBehaviour
 				return spawnPointRoofProps;
 			case RoomType.Library:
 				return libraryRoofProps;
+			case RoomType.BossRoom:
+				return bossRoofProps;
 			default:
 				return normalRoofProps;
 		}
@@ -731,6 +749,7 @@ public class ProceduralRoom : MonoBehaviour
 
 	private void CreateRoof()
 	{
+		//Roof tiles are stretched if room size is float, if its an int, that int refers to how many tiles are placed
 		if (roofPrefabs[0] == null)
 		{
 			return;
@@ -848,7 +867,6 @@ public class ProceduralRoom : MonoBehaviour
 		float actualLength = roomLength * tileSize.z;
 
 		// Calculate room boundaries correctly
-		// Using floorRenderer size to ensure consistent calculations
 		float floorTileSize = floorRenderer.bounds.size.x;
 		float floorOffsetX = -(floorTileSize / 2) + roomOrigin.x;
 		float floorOffsetZ = -(floorTileSize / 2) + roomOrigin.z;
@@ -858,7 +876,7 @@ public class ProceduralRoom : MonoBehaviour
 		float minZ = floorOffsetZ;
 		float maxZ = floorOffsetZ + actualLength;
 
-		// Calculate true center position for the room
+		// Calculate center position for the room
 		Vector3 roomCenter = new Vector3(
 			minX + (actualWidth / 2),
 			roomOrigin.y + roofHeight - currentRoofPropSet.heightOffset,
@@ -868,7 +886,6 @@ public class ProceduralRoom : MonoBehaviour
 		// Place chandelier if enabled
 		if (currentRoofPropSet.allowChandeliers && currentRoofPropSet.chandelierPrefab != null)
 		{
-			// Use identity rotation for chandelier (no rotation)
 			GameObject chandelier = Instantiate(
 				currentRoofPropSet.chandelierPrefab,
 				roomCenter,
@@ -876,6 +893,9 @@ public class ProceduralRoom : MonoBehaviour
 				roofPropsParent
 			);
 
+			// Mark the center cell as occupied (chandelier is above the center)
+			Vector3 centerFloorPos = new Vector3(roomCenter.x, roomOrigin.y, roomCenter.z);
+			gridSystem.MarkCellAsOccupied(centerFloorPos);
 		}
 
 		// Place other roof props
@@ -884,7 +904,6 @@ public class ProceduralRoom : MonoBehaviour
 			// Track placed prop positions for minimum distance
 			List<Vector3> placedRoofPropPositions = new List<Vector3>();
 
-			// Add center position if chandelier was placed
 			if (currentRoofPropSet.allowChandeliers && currentRoofPropSet.chandelierPrefab != null)
 			{
 				placedRoofPropPositions.Add(roomCenter);
@@ -894,7 +913,6 @@ public class ProceduralRoom : MonoBehaviour
 			float roomArea = actualWidth * actualLength;
 			int propsToPlace = Mathf.Max(1, Mathf.FloorToInt(roomArea * currentRoofPropSet.roofPropDensity));
 
-			// Maximum attempts to place props to avoid infinite loop
 			int maxAttempts = propsToPlace * 3;
 			int attempts = 0;
 			int propsPlaced = 0;
@@ -950,9 +968,159 @@ public class ProceduralRoom : MonoBehaviour
 					Quaternion propRotation = Quaternion.Euler(0, randomRotation, 0);
 					GameObject prop = Instantiate(propPrefab, propPosition, propRotation, roofPropsParent);
 					placedRoofPropPositions.Add(propPosition);
+
+					// Mark the cell below this roof prop as occupied
+					Vector3 floorPosition = new Vector3(propPosition.x, roomOrigin.y, propPosition.z);
+					gridSystem.MarkCellAsOccupied(floorPosition);
+
 					propsPlaced++;
 				}
 			}
 		}
 	}
+
+
+	private void MarkOccupiedTiles()
+	{
+		//clear any previous occupation data
+		if (gridSystem.HasGrid())
+		{
+			// Reset all cells to unoccupied except for unwalkable ones 
+			for (int x = 0; x < gridSystem.GetGrid().GetLength(0); x++)
+			{
+				for (int z = 0; z < gridSystem.GetGrid().GetLength(1); z++)
+				{
+					Cell cell = gridSystem.GetCell(x, z);
+					if (cell != null && cell.isWalkable)
+					{
+						cell.isOccupied = false;
+					}
+				}
+			}
+		}
+
+		List<GameObject> allProps = new List<GameObject>();
+
+		// Collect all prop objects that should mark cells as occupied
+		foreach (Transform parent in transform)
+		{
+			if (parent.GetComponent<RoomGridSystem>() != null ||
+				parent.name == "Roof" ||
+				parent.gameObject.name.Contains("Floor") ||
+				parent.gameObject.name.Contains("Wall"))
+			{
+				continue;
+			}
+
+			foreach (Transform child in parent)
+			{
+				if (child.gameObject.activeInHierarchy)
+				{
+					allProps.Add(child.gameObject);
+				}
+			}
+		}
+
+		foreach (GameObject prop in allProps)
+		{
+			Collider propCollider = prop.GetComponentInChildren<Collider>();
+			Renderer propRenderer = prop.GetComponentInChildren<Renderer>();
+
+			if (propCollider == null && propRenderer == null)
+			{
+				continue; 
+			}
+
+			// Get the prop's bounds 
+			Bounds propBounds;
+			if (propCollider != null)
+			{
+				propBounds = propCollider.bounds;
+			}
+			else
+			{
+				propBounds = propRenderer.bounds;
+			}
+
+			Vector3 boundsMin = new Vector3(propBounds.min.x, roomOrigin.y, propBounds.min.z);
+			Vector3 boundsMax = new Vector3(propBounds.max.x, roomOrigin.y, propBounds.max.z);
+
+			// Get grid cells that the bounds overlap
+			Vector2Int minCell = gridSystem.WorldToGrid(boundsMin);
+			Vector2Int maxCell = gridSystem.WorldToGrid(boundsMax);
+
+			minCell.x = minCell.x - 1;
+			minCell.y = minCell.y - 1;
+			maxCell.x = maxCell.x + 1;
+			maxCell.y = maxCell.y + 1;
+
+			// Mark cells within the bounds as occupied
+			for (int x = minCell.x; x <= maxCell.x; x++)
+			{
+				for (int z = minCell.y; z <= maxCell.y; z++)
+				{
+					Cell cell = gridSystem.GetCell(x, z);
+					if (cell == null || !cell.isWalkable)
+					{
+						continue;
+					}
+
+					// Create a bounds for the cell
+					Vector3 cellCenter = cell.worldPosition;
+					float cellSize = gridSystem.GetCellSize();
+					Bounds cellBounds = new Bounds(
+						cellCenter,
+						new Vector3(cellSize * 0.9f, 0.1f, cellSize * 0.9f)
+					);
+
+					// Check if the cell bounds intersect with  prop bounds
+					if (cellBounds.Intersects(propBounds))
+					{
+						// Calculate the center of  overlap
+						Bounds intersection = new Bounds();
+						intersection.min = Vector3.Max(cellBounds.min, propBounds.min);
+						intersection.max = Vector3.Min(cellBounds.max, propBounds.max);
+
+						// Only mark as occupied if the overlap is significant (more than 25% of cell area)
+						float cellArea = cellSize * cellSize;
+						float overlapArea = (intersection.size.x * intersection.size.z);
+						float overlapPercent = overlapArea / cellArea;
+
+						if (overlapPercent > 0.25f)
+						{
+							cell.isOccupied = true;
+						}
+					}
+				}
+			}
+		}
+
+		// Make sure doorway cells are not marked as occupied
+		foreach (Vector3 doorPos in doorPositions)
+		{
+			Vector2Int doorCell = gridSystem.WorldToGrid(doorPos);
+			Cell cell = gridSystem.GetCell(doorCell.x, doorCell.y);
+
+			if (cell != null && cell.isWalkable)
+			{
+				// Clear doorway and cells immediately adjacent to it
+				cell.isOccupied = false;
+
+				// Also clear adjacent cells to ensure doorway remains passable
+				for (int x = -1; x <= 1; x++)
+				{
+					for (int z = -1; z <= 1; z++)
+					{
+						Cell adjacentCell = gridSystem.GetCell(doorCell.x + x, doorCell.y + z);
+						if (adjacentCell != null && adjacentCell.isWalkable)
+						{
+							adjacentCell.isOccupied = false;
+						}
+					}
+				}
+			}
+		}
+	}
+
+
 }

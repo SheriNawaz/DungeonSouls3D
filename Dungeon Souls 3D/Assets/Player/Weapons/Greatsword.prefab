@@ -101,9 +101,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9576fea42b62a34386a83277f63d6ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isTwoHanded: 1
   damage: 11
-  attackSpeedModifier: 1
+  attackSpeedModifier: 0.9
 --- !u!65 &349026309808208943
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -137,6 +136,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67c2cd618e6778247b41b90e0dc8f944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  value: 0
+  value: 1750
   sprite: {fileID: 21300000, guid: 06b0cb409cd81df4ab76cf0271343998, type: 3}
   itemName: Greatsword

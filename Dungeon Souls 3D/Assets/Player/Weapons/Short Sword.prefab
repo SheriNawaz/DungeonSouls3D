@@ -108,8 +108,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.13304967, y: 0.5198486, z: 0.07260482}
-  m_Center: {x: -0.006123852, y: 0.31765744, z: 0.0000000075845294}
+  m_Size: {x: 0.22618003, y: 0.61718535, z: 0.14040582}
+  m_Center: {x: -0.0017868982, y: 0.3663257, z: 0.00044746336}
 --- !u!114 &1411239348977485522
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -137,6 +137,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67c2cd618e6778247b41b90e0dc8f944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  value: 0
+  value: 50
   sprite: {fileID: 21300000, guid: 69ebf2ce4be9c084da04ff71c76d13de, type: 3}
   itemName: Shortsword

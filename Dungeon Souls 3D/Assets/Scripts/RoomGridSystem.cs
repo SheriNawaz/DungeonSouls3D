@@ -19,7 +19,7 @@ public class RoomGridSystem : MonoBehaviour
 {
 	[SerializeField] private float cellSize = 1f;
 	[SerializeField] private bool showGrid = true;
-	[SerializeField] private bool respectRoomBoundaries = true; // Whether to keep grid strictly within room bounds
+	[SerializeField] private bool respectRoomBoundaries = true; 
 
 	private Cell[,] grid;
 	private Vector3 roomOrigin;
@@ -40,7 +40,7 @@ public class RoomGridSystem : MonoBehaviour
 		roomLength = length;
 		floorTileSize = tileSize;
 
-		// Calculate actual room dimensions in world units
+		// Calculate room dimensions in world units
 		float actualWidth = roomWidth * floorTileSize;
 		float actualLength = roomLength * floorTileSize;
 
@@ -76,7 +76,7 @@ public class RoomGridSystem : MonoBehaviour
 		float actualWidth = roomWidth * floorTileSize;
 		float actualLength = roomLength * floorTileSize;
 
-		// Calculate how many cells fit within the room dimensions exactly
+		// Calculate how many cells fit within the room dimensions 
 		int gridWidth = Mathf.FloorToInt(actualWidth / cellSize);
 		int gridLength = Mathf.FloorToInt(actualLength / cellSize);
 
@@ -85,7 +85,7 @@ public class RoomGridSystem : MonoBehaviour
 		float offsetX = -(floorTileSize / 2) + roomOrigin.x;
 		float offsetZ = -(floorTileSize / 2) + roomOrigin.z;
 
-		// Adjust placement to center the grid in the room
+		// Center grid in room
 		float centerOffsetX = (actualWidth - (gridWidth * cellSize)) / 2;
 		float centerOffsetZ = (actualLength - (gridLength * cellSize)) / 2;
 
@@ -99,7 +99,7 @@ public class RoomGridSystem : MonoBehaviour
 					offsetZ + centerOffsetZ + z * cellSize + (cellSize / 2)
 				);
 
-				// Ensure position is within room bounds
+				// Make sure position is within room bounds
 				if (!respectRoomBoundaries || IsPositionWithinRoomBounds(worldPos))
 				{
 					grid[x, z] = new Cell(worldPos);
@@ -110,7 +110,7 @@ public class RoomGridSystem : MonoBehaviour
 
 	private bool IsPositionWithinRoomBounds(Vector3 position)
 	{
-		// Add a small margin to avoid cells right at the edge
+		// Add some padding to avoid cells right at the edge
 		float margin = cellSize * 0.05f;
 		return position.x >= minX + margin &&
 			   position.x <= maxX - margin &&
@@ -271,10 +271,21 @@ public class RoomGridSystem : MonoBehaviour
 	{
 		if (doorPositions == null || doorPositions.Count == 0) return;
 
-		Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f); // Orange with transparency
+		Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f);
 		foreach (Vector3 doorPos in doorPositions)
 		{
 			Gizmos.DrawSphere(doorPos, doorwayAvoidanceRadius);
 		}
 	}
+
+	public void MarkCellAsOccupied(Vector3 worldPosition)
+	{
+		Vector2Int gridPos = WorldToGrid(worldPosition);
+		Cell cell = GetCell(gridPos.x, gridPos.y);
+		if (cell != null)
+		{
+			cell.isOccupied = true;
+		}
+	}
+
 }

@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 using Random = UnityEngine.Random;
 
 public class DungeonGenerator : MonoBehaviour
@@ -8,16 +10,18 @@ public class DungeonGenerator : MonoBehaviour
 	[Header("Dungeon Settings")]
 	[SerializeField] private int minRooms = 15;
 	[SerializeField] private int maxRooms = 25;
-	[SerializeField] private int roomSpacing = 10; // Distance between rooms
-	[SerializeField] private float roomSize = 5f; // Each room is 5x5 as specified
-	[SerializeField] private int maxPathLength = 8; // How many rooms long a path can be
-	[SerializeField] private float branchingProbability = 0.3f; // Probability to create branching paths
+	[SerializeField] private int roomSpacing = 10; 
+	[SerializeField] private float roomSize = 5f;
+	[SerializeField] private int maxPathLength = 8; 
+	[SerializeField] private float branchingProbability = 0.3f; 
+	[SerializeField] private int additionalSpawnPoints = 5; 
 
 	[Header("Room Prefabs")]
-	[SerializeField] private GameObject roomPrefab; // Base room prefab
-	[SerializeField] private Transform roomsParent; // Parent object to hold all rooms
+	[SerializeField] private GameObject roomPrefab;
+	[SerializeField] private Transform roomsParent;
+	[SerializeField] private GameObject merchantPrefab; 
+	[SerializeField] private Transform merchantsParent; 
 
-	// Room Type Chances (adjust as needed)
 	[Header("Room Type Chances")]
 	[Range(0f, 1f)]
 	[SerializeField] private float normalRoomChance = 0.6f;
@@ -30,16 +34,17 @@ public class DungeonGenerator : MonoBehaviour
 	[Range(0f, 1f)]
 	[SerializeField] private float libraryRoomChance = 0.05f;
 
-	// Internal variables
 	private List<RoomNode> allRooms = new List<RoomNode>();
 	private Dictionary<Vector2Int, RoomNode> roomGrid = new Dictionary<Vector2Int, RoomNode>();
 	private RoomNode startRoom;
+	private List<RoomNode> spawnRooms = new List<RoomNode>();
 	private RoomNode endRoom;
 	private RoomNode mapRoom;
 	private RoomNode keyRoom;
 	private int totalRooms;
 	private int roomsFirstHalf;
 	private int roomsSecondHalf;
+	private EnemySpawner enemySpawner;
 
 	// Directions for room connections
 	private Vector2Int[] directions = new Vector2Int[] {
@@ -50,7 +55,7 @@ public class DungeonGenerator : MonoBehaviour
     };
 
 	// Nested class to represent a room in the dungeon
-	private class RoomNode
+	public class RoomNode
 	{
 		public GameObject roomObject;
 		public ProceduralRoom roomComponent;
@@ -59,6 +64,7 @@ public class DungeonGenerator : MonoBehaviour
 		public List<RoomNode> connectedRooms = new List<RoomNode>();
 		public bool visited = false;
 		public int distanceFromStart = 0;
+		public GameObject merchantObject; 
 
 		public RoomNode(Vector2Int position, RoomType type)
 		{
@@ -75,9 +81,10 @@ public class DungeonGenerator : MonoBehaviour
 		}
 	}
 
-	// Start is called before first frame update
 	void Start()
 	{
+		enemySpawner = GetComponent<EnemySpawner>();
+
 		GenerateDungeon();
 	}
 
@@ -91,18 +98,14 @@ public class DungeonGenerator : MonoBehaviour
 		roomsFirstHalf = totalRooms / 2;
 		roomsSecondHalf = totalRooms - roomsFirstHalf;
 
-		Debug.Log($"Generating dungeon with {totalRooms} rooms");
-
 		// Create the initial layout (start at origin)
 		Vector2Int startPosition = Vector2Int.zero;
 		startRoom = CreateRoom(startPosition, RoomType.SpawnPoint);
 		allRooms.Add(startRoom);
 		roomGrid[startPosition] = startRoom;
-
+		spawnRooms.Add(startRoom);
 		// Build the main path first
 		List<RoomNode> mainPath = GenerateMainPath(startRoom, maxPathLength);
-		endRoom = mainPath[mainPath.Count - 1];
-		endRoom.roomType = RoomType.SpawnPoint; // Set the last room as a spawn room (exit)
 
 		// Add branching paths
 		GenerateBranchingPaths();
@@ -113,13 +116,59 @@ public class DungeonGenerator : MonoBehaviour
 			TryAddBranch();
 		}
 
-		// Place special rooms (Map in first half, Key in second half)
+		// After all rooms are generated, find the farthest room to be the boss room
+		PlaceBossRoom();
+
+		// Add additional spawn points distributed around the dungeon
+		AddAdditionalSpawnPoints();
+
+		// Place special rooms 
 		PlaceSpecialRooms();
 
 		// Instantiate the actual room objects and set up their connections
 		InstantiateRooms();
 
-		Debug.Log($"Generated {allRooms.Count} rooms in total");
+		// Spawn merchants at all spawn points
+		SpawnMerchantsAtSpawnPoints();
+
+		StartCoroutine(DelayedEnemySpawning());
+	}
+
+	private void SpawnMerchantsAtSpawnPoints()
+	{
+		foreach (RoomNode spawnRoom in spawnRooms)
+		{
+			if (spawnRoom.roomObject != null)
+			{
+				// Get the room's world position
+				Vector3 roomPosition = spawnRoom.roomObject.transform.position;
+
+				Vector3 merchantPosition = new Vector3(
+					roomPosition.x,
+					roomPosition.y,
+					roomPosition.z
+				);
+
+				GameObject merchant = Instantiate(merchantPrefab, merchantPosition, Quaternion.identity);
+
+				merchant.transform.SetParent(merchantsParent);
+
+				spawnRoom.merchantObject = merchant;
+
+			}
+		}
+	}
+
+	private IEnumerator DelayedEnemySpawning()
+	{
+		yield return new WaitForEndOfFrame();
+
+		yield return null;
+
+		if (enemySpawner != null)
+		{
+			enemySpawner.SpawnEnemiesInDungeon();
+		}
 	}
 
 	private List<RoomNode> GenerateMainPath(RoomNode startNode, int maxLength)
@@ -158,7 +207,7 @@ public class DungeonGenerator : MonoBehaviour
 	private void GenerateBranchingPaths()
 	{
 		int currentRoomCount = allRooms.Count;
-		int attemptLimit = 100; // Prevent infinite loops
+		int attemptLimit = 100; 
 		int attempts = 0;
 
 		while (allRooms.Count < totalRooms && attempts < attemptLimit)
@@ -187,13 +236,16 @@ public class DungeonGenerator : MonoBehaviour
 		allRooms.Add(newRoom);
 		roomGrid[newPosition] = newRoom;
 
+		// Set the distance from start based on the branching source
+		newRoom.distanceFromStart = branchSource.distanceFromStart + 1;
+
 		// Connect the rooms
 		ConnectRooms(branchSource, newRoom);
 
 		// 30% chance to continue branching
 		if (Random.value < branchingProbability)
 		{
-			int branchLength = Random.Range(1, 4); // Short branches
+			int branchLength = Random.Range(1, 4);
 			RoomNode current = newRoom;
 
 			for (int i = 0; i < branchLength; i++)
@@ -210,8 +262,8 @@ public class DungeonGenerator : MonoBehaviour
 				RoomNode nextRoom = CreateRoom(newPosition, GetRandomRoomType());
 				allRooms.Add(nextRoom);
 				roomGrid[newPosition] = nextRoom;
+				nextRoom.distanceFromStart = current.distanceFromStart + 1;
 
-				// Connect the rooms
 				ConnectRooms(current, nextRoom);
 
 				current = nextRoom;
@@ -219,6 +271,222 @@ public class DungeonGenerator : MonoBehaviour
 		}
 
 		return true;
+	}
+
+	private void AddAdditionalSpawnPoints()
+	{
+		CalculateDistancesFromStart();
+
+		// Get a list of rooms sorted by their distance from center
+		Vector2 dungeonCenter = CalculateDungeonCenterPosition();
+		List<RoomNode> roomsByCenterDistance = new List<RoomNode>(allRooms);
+
+		// Sort rooms by their distance from the dungeon center 
+		roomsByCenterDistance.Sort((a, b) => {
+			float distA = Vector2.Distance(
+				new Vector2(a.gridPosition.x, a.gridPosition.y),
+				new Vector2(dungeonCenter.x / roomSpacing, dungeonCenter.y / roomSpacing));
+
+			float distB = Vector2.Distance(
+				new Vector2(b.gridPosition.x, b.gridPosition.y),
+				new Vector2(dungeonCenter.x / roomSpacing, dungeonCenter.y / roomSpacing));
+
+			return distB.CompareTo(distA); 
+		});
+
+		int targetSpawnPoints = additionalSpawnPoints;
+
+		// Find rooms that are far from each other
+		HashSet<RoomNode> selectedRooms = new HashSet<RoomNode>();
+		selectedRooms.Add(startRoom); // Add the main spawn point
+
+		// try to add rooms while maintaining maximum distance
+		int minDistance = 4; // Start with a high minimum distance
+
+		while (selectedRooms.Count < targetSpawnPoints + 1 && minDistance > 0)
+		{
+			// Try to find rooms at the current minimum distance
+			bool addedAny = false;
+
+			foreach (RoomNode candidate in roomsByCenterDistance)
+			{
+				// Skip rooms that are already special
+				if (candidate.roomType == RoomType.SpawnPoint ||
+					candidate.roomType == RoomType.BossRoom ||
+					candidate.roomType == RoomType.Map ||
+					candidate.roomType == RoomType.Key ||
+					selectedRooms.Contains(candidate))
+				{
+					continue;
+				}
+
+				// Check if this room is far enough from existing spawn points
+				bool isFarEnough = true;
+				foreach (RoomNode existingSpawn in selectedRooms)
+				{
+					if (ManhattanDistance(candidate.gridPosition, existingSpawn.gridPosition) < minDistance)
+					{
+						isFarEnough = false;
+						break;
+					}
+				}
+
+				if (isFarEnough)
+				{
+					candidate.roomType = RoomType.SpawnPoint;
+					spawnRooms.Add(candidate);
+					selectedRooms.Add(candidate);
+					addedAny = true;
+
+					// If target reached, break out
+					if (selectedRooms.Count >= targetSpawnPoints + 1)
+					{
+						break;
+					}
+				}
+			}
+
+			// If we couldn't add any rooms at this distance, reduce the minimum distance
+			if (!addedAny)
+			{
+				minDistance--;
+			}
+		}
+
+		if (selectedRooms.Count < targetSpawnPoints + 1)
+		{
+
+			// Convert any non-special rooms to spawn points
+			foreach (RoomNode candidate in allRooms)
+			{
+				if (selectedRooms.Count >= targetSpawnPoints + 1)
+				{
+					break;
+				}
+
+				// Skip rooms that are already special
+				if (candidate.roomType == RoomType.SpawnPoint ||
+					candidate.roomType == RoomType.BossRoom ||
+					candidate.roomType == RoomType.Map ||
+					candidate.roomType == RoomType.Key ||
+					selectedRooms.Contains(candidate))
+				{
+					continue;
+				}
+
+				candidate.roomType = RoomType.SpawnPoint;
+				spawnRooms.Add(candidate);
+				selectedRooms.Add(candidate);
+			}
+		}
+
+	}
+
+	private Vector2 CalculateDungeonCenterPosition()
+	{
+		if (allRooms.Count == 0)
+			return Vector2.zero;
+
+		int minX = int.MaxValue;
+		int maxX = int.MinValue;
+		int minY = int.MaxValue;
+		int maxY = int.MinValue;
+
+		foreach (RoomNode room in allRooms)
+		{
+			minX = Mathf.Min(minX, room.gridPosition.x);
+			maxX = Mathf.Max(maxX, room.gridPosition.x);
+			minY = Mathf.Min(minY, room.gridPosition.y);
+			maxY = Mathf.Max(maxY, room.gridPosition.y);
+		}
+
+		float centerX = (minX + maxX) / 2f;
+		float centerY = (minY + maxY) / 2f;
+
+		Vector3 worldCenter = new Vector3(
+			centerX * roomSpacing,
+			0,
+			centerY * roomSpacing
+		);
+
+		return new Vector2(worldCenter.x, worldCenter.z);
+	}
+
+	// find the farthest room and set it as  boss room
+	private void PlaceBossRoom()
+	{
+		// Calculate distances from start room for all rooms using BFS
+		CalculateDistancesFromStart();
+
+		// Get all rooms that have only one connection (dead ends)
+		List<RoomNode> deadEnds = allRooms.Where(room =>
+			room != startRoom &&
+			room.connectedRooms.Count == 1 &&
+			room.roomType != RoomType.SpawnPoint).ToList();
+
+		if (deadEnds.Count > 0)
+		{
+			// Find the dead end with largest distance from start
+			deadEnds.Sort((a, b) => b.distanceFromStart.CompareTo(a.distanceFromStart));
+			endRoom = deadEnds[0];
+		}
+		else
+		{
+			// If no dead ends, get the furthest room that's not the start
+			allRooms.Sort((a, b) => b.distanceFromStart.CompareTo(a.distanceFromStart));
+			foreach (RoomNode room in allRooms)
+			{
+				if (room != startRoom && room.roomType != RoomType.SpawnPoint)
+				{
+					endRoom = room;
+					break;
+				}
+			}
+		}
+
+		// Set the room type to boss room
+		if (endRoom != null)
+		{
+			endRoom.roomType = RoomType.BossRoom;
+		}
+	}
+
+	//  method to calculate accurate distances from start for all rooms
+	private void CalculateDistancesFromStart()
+	{
+		// Reset all distances and visited flags
+		foreach (RoomNode room in allRooms)
+		{
+			room.distanceFromStart = int.MaxValue;
+			room.visited = false;
+		}
+
+		// BFS to calculate shortest path distances
+		Queue<RoomNode> queue = new Queue<RoomNode>();
+		startRoom.distanceFromStart = 0;
+		startRoom.visited = true;
+		queue.Enqueue(startRoom);
+
+		while (queue.Count > 0)
+		{
+			RoomNode current = queue.Dequeue();
+
+			foreach (RoomNode neighbor in current.connectedRooms)
+			{
+				if (!neighbor.visited)
+				{
+					neighbor.visited = true;
+					neighbor.distanceFromStart = current.distanceFromStart + 1;
+					queue.Enqueue(neighbor);
+				}
+			}
+		}
+
+		// Reset visited flags for later use
+		foreach (RoomNode room in allRooms)
+		{
+			room.visited = false;
+		}
 	}
 
 	private List<Vector2Int> GetValidDirections(Vector2Int position)
@@ -229,7 +497,7 @@ public class DungeonGenerator : MonoBehaviour
 		{
 			Vector2Int neighborPos = position + dir;
 
-			// Check if this position is already occupied
+			// Check if  position is already occupied
 			if (roomGrid.ContainsKey(neighborPos))
 			{
 				continue;
@@ -241,7 +509,7 @@ public class DungeonGenerator : MonoBehaviour
 			{
 				if (existingPos != position && ManhattanDistance(neighborPos, existingPos) == 1)
 				{
-					// This is a valid neighboring room
+					// valid neighboring room
 				}
 				else if (neighborPos == existingPos)
 				{
@@ -259,7 +527,7 @@ public class DungeonGenerator : MonoBehaviour
 		return validDirections;
 	}
 
-	private int ManhattanDistance(Vector2Int a, Vector2Int b)
+	private int ManhattanDistance(Vector2Int a, Vector2Int b) //Get distance between 2 rooms
 	{
 		return Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
 	}
@@ -306,7 +574,7 @@ public class DungeonGenerator : MonoBehaviour
 		for (int i = 1; i < allRooms.Count / 2; i++)  // Skip the start room (index 0)
 		{
 			RoomNode room = allRooms[i];
-			if (room.roomType != RoomType.SpawnPoint) // Don't replace spawn points
+			if (room.roomType != RoomType.SpawnPoint && room.roomType != RoomType.BossRoom) // Don't replace spawn points or boss rooms
 			{
 				firstHalfRooms.Add(room);
 			}
@@ -320,10 +588,10 @@ public class DungeonGenerator : MonoBehaviour
 
 		// Second half gets the key room
 		List<RoomNode> secondHalfRooms = new List<RoomNode>();
-		for (int i = allRooms.Count / 2; i < allRooms.Count - 1; i++)  // Skip the end room
+		for (int i = allRooms.Count / 2; i < allRooms.Count; i++)
 		{
 			RoomNode room = allRooms[i];
-			if (room.roomType != RoomType.SpawnPoint) // Don't replace spawn points
+			if (room.roomType != RoomType.SpawnPoint && room.roomType != RoomType.BossRoom) // Don't replace spawn points or boss rooms
 			{
 				secondHalfRooms.Add(room);
 			}
@@ -358,7 +626,6 @@ public class DungeonGenerator : MonoBehaviour
 			ProceduralRoom proceduralRoom = room.roomObject.GetComponent<ProceduralRoom>();
 			if (proceduralRoom != null)
 			{
-				// Configure the room
 				proceduralRoom.roomType = room.roomType;
 				proceduralRoom.roomWidth = roomSize;
 				proceduralRoom.roomLength = roomSize;
@@ -373,7 +640,6 @@ public class DungeonGenerator : MonoBehaviour
 
 	private void SetupDoors(RoomNode room, ProceduralRoom proceduralRoom)
 	{
-		// Reset all doors first
 		proceduralRoom.hasNorthDoor = false;
 		proceduralRoom.hasSouthDoor = false;
 		proceduralRoom.hasEastDoor = false;
@@ -419,12 +685,17 @@ public class DungeonGenerator : MonoBehaviour
 		endRoom = null;
 		mapRoom = null;
 		keyRoom = null;
+		spawnRooms.Clear();
 	}
 
-	// Method to regenerate the dungeon (can be called from editor or other scripts)
 	public void RegenerateDungeon()
 	{
 		ClearDungeon();
 		GenerateDungeon();
+	}
+
+	public Vector2 CalculateDungeonCenter()
+	{
+		return CalculateDungeonCenterPosition();
 	}
 }

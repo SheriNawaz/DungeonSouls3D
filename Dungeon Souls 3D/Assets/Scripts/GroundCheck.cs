@@ -6,6 +6,7 @@ public class GroundCheck : MonoBehaviour
 	{
 		if(other.tag == "Ground")
 		{
+			//When the player collides with ground update isGrounded
 			PlayerController player = GetComponentInParent<PlayerController>();
 			player.isGrounded = true;
 		}

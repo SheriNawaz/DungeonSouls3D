@@ -101,7 +101,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9576fea42b62a34386a83277f63d6ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  isTwoHanded: 1
   damage: 20
   attackSpeedModifier: 0.65
 --- !u!65 &380034881426882591
@@ -137,6 +136,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67c2cd618e6778247b41b90e0dc8f944, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  value: 0
+  value: 2000
   sprite: {fileID: 21300000, guid: 48af1796a325ca942aa07f64cb63091f, type: 3}
   itemName: Battleaxe

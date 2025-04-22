@@ -20,6 +20,9 @@ public class PlayerController : MonoBehaviour
 	[SerializeField] GameObject healingEffect;
 	[SerializeField] TMP_Text statsGold;
 	[SerializeField] TMP_Text invGold;
+	[SerializeField] TMP_Text shopGold;
+	public SpawnPoint currentSpawnPoint;
+	public GameObject bossHealthBar;
 
 	[Header("Movement")]
 	[SerializeField] float walkSpeed = 6f;
@@ -31,7 +34,7 @@ public class PlayerController : MonoBehaviour
 	[SerializeField] float rollKeyTime = 0.2f;
 
 	[Header("Stamina")]
-	[SerializeField] float maxStamina = 100f;
+	public float maxStamina = 200f;
 	[SerializeField] float stamRegen = 10f;
 	[SerializeField] float stamDelay = 1f;
 	[SerializeField] float runStam = 15f;
@@ -41,31 +44,56 @@ public class PlayerController : MonoBehaviour
 	[Header("Combat")]
 	[SerializeField] float attackingSpeed = 3f;
 	[SerializeField] float attackStam = 15f;
-	[SerializeField] float maxHealth = 100f;
+	public float maxHealth = 100f;
 	public float damage;
-	[SerializeField] float currentHealth;
+	public float currentHealth;
 	[SerializeField] float damageModifier = 0f;
 
 	[Header("Player Loot")]
-	[SerializeField] int startingPotions = 3;
 	public int maxPotions = 3;
 	public int healthPots;
 	public int currentGold = 0;
 
+	[Header("Experience")]
+	[SerializeField] int currentLevel = 0;
+	public int currentXP = 0;
+	[SerializeField] int nextLevelXP = 50;
+	[SerializeField] int defenceLevel = 0;
+	[SerializeField] int strengthLevel = 0;
+	[SerializeField] int healthLevel = 0;
+	[SerializeField] int staminaLevel = 0;
+	[SerializeField] TMP_Text levelText;
+	[SerializeField] TMP_Text xpText;
+	[SerializeField] TMP_Text defenceText;
+	[SerializeField] TMP_Text strengthText;
+	[SerializeField] TMP_Text healthLvlText;
+	[SerializeField] TMP_Text staminaText;
+	public int totalXP = 0;
+
 	public bool hasBossKey = false;
 	public bool hasMapFragment = false;
+	private bool resetting = false;
 
 	private Rigidbody rigidBody;
 	private CapsuleCollider hitbox;
 	private WeaponManager weapon;
-	private EnemyController currentEnemy = null;
+	public EnemyController currentEnemy = null;
 
-	private float currentStamina;
+	public float currentStamina;
 	private float lastStaminaUseTime;
 	private float turnSmoothVelocity;
 	private float currentSpeed;
 	private float shiftTime = 0f;
 	private float attackSpeed = 0f;
+	private float damageReduction = 0f;
+	private float startMaxHP;
+	private float startmaxStamina;
+	private float startstamRegen;
+	private float startrunStam;
+	private float startrollStam;
+	private float startjumpStam;
+	private int startNextLVLXP;
+
 
 	[HideInInspector] public bool isGrounded = true;
 	public bool isAttacking = false;
@@ -91,6 +119,14 @@ public class PlayerController : MonoBehaviour
 		weapon = GetComponentInChildren<WeaponManager>();
 		healthPots = maxPotions;
 		healthPotions.text = maxPotions.ToString();
+
+		startMaxHP = maxHealth;
+		startmaxStamina = maxStamina;
+		startstamRegen = stamRegen;
+		startrunStam = runStam;
+		startrollStam = rollStam;
+		startjumpStam = jumpStam;
+		startNextLVLXP = nextLevelXP;
 	}
 
 	private void FixedUpdate()
@@ -110,10 +146,76 @@ public class PlayerController : MonoBehaviour
 		UpdatePlayerRotationToFaceTarget();
 		HandleDeath();
 		HandleHealing();
+		if (Input.GetKeyDown(KeyCode.M) && hasMapFragment)
+		{
+			FindFirstObjectByType<PauseMenu>().ViewMap();
+		}
+		if(currentXP <= nextLevelXP)
+		{
+			resetting = false;
+		}
+	}
+
+	public void UseCharmStats(string previous, string current)
+	{
+		//Increase stats when a charm is used and decrease stats when its removed
+		switch (previous)
+		{
+			case "Defence":
+				defenceLevel -= 5;
+				damageReduction -= 5;
+				break;
+			case "Strength":
+				strengthLevel -= 5;
+				damageModifier -= 10;
+				break;
+			case "Health":
+				healthLevel -= 5;
+				currentHealth -= 25;
+				maxHealth -= 5;
+				break;
+			case "Stamina":
+				staminaLevel -= 5;
+				maxStamina -= 50;
+				stamRegen -= 2.5f;
+				runStam += 0.5f;
+				rollStam += 0.5f;
+				jumpStam += 0.5f;
+				break;
+			default:
+				break;
+		}
+		switch (current)
+		{
+			case "Defence":
+				defenceLevel += 5;
+				damageReduction += 5;
+				break;
+			case "Strength":
+				strengthLevel += 5;
+				damageModifier += 10;
+				break;
+			case "Health":
+				healthLevel += 5;
+				currentHealth += 25;
+				maxHealth += 5;
+				break;
+			case "Stamina":
+				staminaLevel += 5;
+				maxStamina += 50;
+				stamRegen += 2.5f;
+				runStam -= 0.5f;
+				rollStam -= 0.5f;
+				jumpStam -= 0.5f;
+				break;
+			default:
+				break;
+		}
 	}
 
 	private void HandleHealing()
 	{
+		//Allow usage of heal potions when states are correct and play an effect and animation for it
 		if (Input.GetKeyDown(KeyCode.R) && healthPots > 0 && isGrounded && !isAttacking && !isRolling)
 		{
 			if(currentHealth >= maxHealth - 35f && currentHealth < maxHealth)
@@ -142,7 +244,31 @@ public class PlayerController : MonoBehaviour
 	{
 		if(currentHealth <= 0)
 		{
-			Debug.Log("Dead");
+			//Reset position and heal bosses
+			bossHealthBar.SetActive(false);
+			LevelChanger level = FindFirstObjectByType<LevelChanger>();
+			if (!level.nextLevel)
+			{
+				BossController levelBoss = FindFirstObjectByType<BossController>();
+				levelBoss.health = levelBoss.maxHealth;
+				levelBoss.transform.position = levelBoss.startPos;
+			}
+			else
+			{
+				DragonController levelBoss = FindFirstObjectByType<DragonController>();
+				levelBoss.health = levelBoss.maxHealth;
+				levelBoss.transform.position = levelBoss.startPos;
+			}
+			if (currentSpawnPoint == null)
+			{
+				currentSpawnPoint = FindFirstObjectByType<SpawnPoint>();
+			}
+
+			transform.position = currentSpawnPoint.transform.position;
+			currentHealth = maxHealth;
+			currentStamina = maxStamina;
+			healthPots = maxPotions;
+			
 		}
 	}
 
@@ -150,6 +276,7 @@ public class PlayerController : MonoBehaviour
 	{
 		if (lockedIn && currentTarget != null)
 		{
+			//Face target when locked in
 			Vector3 directionToTarget = (currentTarget.position - transform.position).normalized;
 			directionToTarget.y = 0;
 			Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
@@ -159,17 +286,10 @@ public class PlayerController : MonoBehaviour
 
 	private void HandleLockOn()
 	{
-		Image lockOnImage = null;
-		if (currentTarget != null)
-			lockOnImage = currentTarget.GetComponentInChildren<Image>();
-
 		if (Input.GetKeyDown(KeyCode.Mouse2))
 		{
 			if (lockedIn)
 			{
-				if (currentTarget != null && lockOnImage != null)
-					lockOnImage.enabled = false;
-
 				lockedIn = false;
 				currentTarget = null;
 				lockOnCam.SetActive(false);
@@ -177,6 +297,7 @@ public class PlayerController : MonoBehaviour
 			}
 			else
 			{
+				//Find the closest enemy and lock onto them if middle mouse is pressed
 				EnemyController[] enemies = FindObjectsByType<EnemyController>(FindObjectsSortMode.None);
 				float closestDistance = Mathf.Infinity;
 				EnemyController closestEnemy = null;
@@ -205,14 +326,6 @@ public class PlayerController : MonoBehaviour
 					lockedIn = true;
 					currentTarget = closestEnemy.transform;
 					UpdatePlayerRotationToFaceTarget();
-
-					lockOnImage = currentTarget.GetComponentInChildren<Image>();
-					if (lockOnImage != null)
-						lockOnImage.enabled = true;
-				}
-				else
-				{
-					Debug.Log("No enemy in view to lock onto");
 				}
 			}
 		}
@@ -226,6 +339,13 @@ public class PlayerController : MonoBehaviour
 		healthText.text = currentHealth + "/" + maxHealth;
 		statsGold.text = currentGold.ToString();
 		invGold.text = currentGold.ToString();
+		shopGold.text = currentGold.ToString();
+		levelText.text = "Level " + currentLevel.ToString();
+		xpText.text = "XP: " + currentXP.ToString() + "/" + nextLevelXP.ToString();
+		defenceText.text = "Defence " + defenceLevel.ToString();
+		strengthText.text = "Strength " + strengthLevel.ToString();
+		healthLvlText.text = "Health " + healthLevel.ToString();
+		staminaText.text = "Stamina " + staminaLevel.ToString();
 	}
 
 	private void HandleCrouching()
@@ -297,7 +417,6 @@ public class PlayerController : MonoBehaviour
 			isAttacking = true;
 			currentSpeed = 1f;
 			animator.speed = attackSpeed;
-			
 		}
 
 		if (anim == "isRolling")
@@ -312,7 +431,7 @@ public class PlayerController : MonoBehaviour
 		}
 
 		AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-		float animLength = stateInfo.length * animator.speed;
+		float animLength = stateInfo.length / animator.speed;
 		yield return new WaitForSeconds(animLength);
 		if (anim == "isAttacking")
 		{
@@ -337,13 +456,13 @@ public class PlayerController : MonoBehaviour
 
 	private void HandleRunAndRoll()
 	{
-		if (Input.GetKeyDown(KeyCode.LeftShift))
+		if (Input.GetKeyDown(KeyCode.LeftShift)) //Sprint when sprint key held down
 		{
 			shiftTime = Time.time;
 			sprinting = true;
 		}
 
-		if (Input.GetKeyUp(KeyCode.LeftShift))
+		if (Input.GetKeyUp(KeyCode.LeftShift)) //Roll if sprint key was tapped and not held
 		{
 			float keyHeldDuration = Time.time - shiftTime;
 			sprinting = false;
@@ -379,6 +498,7 @@ public class PlayerController : MonoBehaviour
 
 	private void HandleMovement()
 	{
+		//Set animations, rotations and movements of player
 		ResetSpeed();
 		float horizontal = Input.GetAxisRaw("Horizontal");
 		float vertical = Input.GetAxisRaw("Vertical");
@@ -391,7 +511,7 @@ public class PlayerController : MonoBehaviour
 		if (dir.magnitude >= 0.01f)
 		{
 			float targetAngle;
-			if (lockedIn)
+			if (lockedIn) //Set rotation when lock on camera enabled
 				targetAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + lockOnCam.transform.eulerAngles.y;
 			else
 				targetAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg + camera.eulerAngles.y;
@@ -446,13 +566,152 @@ public class PlayerController : MonoBehaviour
 	{
 		if (other.tag == "EnemySword")
 		{
+			//Take damage from enemy
 			EnemyController enemy = other.gameObject.GetComponentInParent<EnemyController>();
-			if (enemy.isAttacking && !enemy.hitPlayer)
+			if (enemy.isAttacking && !enemy.hitPlayer && !isRolling)
 			{
 				enemy.hitPlayer = true;
-				currentHealth -= enemy.damage;
+				if (enemy.damage - damageReduction > 1)
+					currentHealth -= (enemy.damage - damageReduction);
+				else
+					currentHealth -= 1; //Make enemy deal less damage when defence is higher. But enemies can never deal 0 damage
 				currentEnemy = enemy;
+				print(currentEnemy.name);
 			}
 		}
+		else if (other.tag == "BossSword")
+		{
+			//Take damage from boss
+			BossController enemy = other.gameObject.GetComponentInParent<BossController>();
+			if (enemy.isAttacking && !enemy.hitPlayer && !isRolling)
+			{
+				enemy.hitPlayer = true;
+				if (enemy.damage - damageReduction > 1)
+					currentHealth -= (enemy.damage - damageReduction);
+				else
+					currentHealth -= 1;
+			}
+		}
+		else if (other.tag == "Dragon")
+		{
+			//Take damage from dragon
+			DragonController enemy = FindFirstObjectByType<DragonController>();
+			if (enemy.isAttacking && !enemy.hitPlayer && !isRolling)
+			{
+				print("Hit");
+				enemy.hitPlayer = true;
+				if (enemy.damage - damageReduction > 1)
+					currentHealth -= (enemy.damage - damageReduction);
+				else
+					currentHealth -= 1;
+			}
+		}
+	}
+
+	private void OnParticleCollision()
+	{
+		//Take damage from dragon breath
+		DragonController enemy = FindFirstObjectByType<DragonController>();
+		if (enemy.isAttacking && !enemy.hitPlayer && !isRolling)
+		{
+			enemy.hitPlayer = true;
+			if (enemy.flameDamage - damageReduction > 1)
+				currentHealth -= (enemy.flameDamage - damageReduction);
+			else
+				currentHealth -= 1;
+		}
+	}
+
+	private void OnCollisionStay(Collision collision)
+	{
+		if(collision.gameObject.tag == "Bossdoor" && hasBossKey)
+		{
+			//Enter bossroom if colliding with the bossdoor and if the player has the key
+			transform.position = new Vector3(0f, 250.5f, 0f);
+			bossHealthBar.SetActive(true);
+		}
+
+	}
+
+	public void DefenceUp() //Level up defence
+	{
+		if(currentXP >= nextLevelXP)
+		{
+			currentXP = currentXP - nextLevelXP;
+			nextLevelXP += 50;
+			currentLevel++;
+			defenceLevel++;
+			damageReduction += 1;
+		}
+	}
+
+	public void HealthUp() //Level up health
+	{
+		if (currentXP >= nextLevelXP)
+		{
+			currentXP = currentXP - nextLevelXP;
+			nextLevelXP += 50;
+			currentLevel++;
+			healthLevel++;
+			maxHealth += 5;
+			currentHealth += 5;
+		}
+	}
+
+	public void StaminaUp() //Level up stamina
+	{
+		if (currentXP >= nextLevelXP)
+		{
+			currentXP = currentXP - nextLevelXP;
+			nextLevelXP += 50;
+			currentLevel++;
+			staminaLevel++;
+
+			maxStamina += 15;
+			stamRegen += 0.5f;
+			runStam -= 0.5f;
+			rollStam -= 0.5f;
+			jumpStam -= 0.5f;
+		}
+	}
+
+	public void StrengthUp() //Level up strength
+	{
+		if (currentXP >= nextLevelXP)
+		{
+			currentXP = currentXP - nextLevelXP;
+			nextLevelXP += 50;
+			currentLevel++;
+			strengthLevel++;
+
+			damageModifier += 2;
+		}
+	}
+
+	public void ResetStats()
+	{
+		//For resetting stats to 0 for respeccing character
+		resetting = false;
+		if(currentGold >= 5000 && !resetting)
+		{
+			resetting = true;
+			nextLevelXP = startNextLVLXP;
+			currentXP = totalXP;
+			currentGold -= 5000;
+			currentLevel = 0;
+			strengthLevel = 0;
+			defenceLevel = 0;
+			healthLevel = 0;
+			staminaLevel = 0;
+			damageModifier = 0;
+			damageReduction = 0;
+			maxHealth = startMaxHP;
+			maxStamina = startmaxStamina;
+			stamRegen = startstamRegen;
+			runStam = startrunStam;
+			rollStam = startrollStam;
+			jumpStam = startjumpStam;
+		}
+		
 	}
 }
